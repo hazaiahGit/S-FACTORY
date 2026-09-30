@@ -22,6 +22,7 @@ import {
     Package,
     X,
     AlertCircle,
+    ChevronUp,
 } from '@lucide/vue';
 
 const props = defineProps({
@@ -37,6 +38,9 @@ const taxRate = parseFloat(business.tax_rate || 0);
 
 const searchQuery = ref('');
 const priceMode = ref('retail'); // 'retail' or 'wholesale'
+
+// Mobile cart sheet
+const mobileCartOpen = ref(false);
 
 const togglePriceMode = (mode) => {
     if (form.items.length > 0 && priceMode.value !== mode) {
@@ -236,6 +240,7 @@ const openPayment = () => {
     if (form.items.length === 0) return;
     paymentForm.value.amount = form.status === 'credit' || form.status === 'draft' || form.status === 'on_hold' ? 0 : totalDue.value;
     showPaymentModal.value = true;
+    mobileCartOpen.value = false;
 };
 
 const processCheckout = () => {
@@ -266,41 +271,41 @@ const processCheckout = () => {
     <AppLayout>
         <template #header>
             <div class="flex items-center">
-                <Link :href="route('sales.index')" class="mr-4 text-slate-400 hover:text-slate-600 transition-colors">
-                    <ArrowLeft class="w-6 h-6" />
+                <Link :href="route('sales.index')" class="mr-3 sm:mr-4 text-slate-400 hover:text-slate-600 transition-colors">
+                    <ArrowLeft class="w-5 h-5 sm:w-6 sm:h-6" />
                 </Link>
-                <span class="font-bold">Point of Sale</span>
+                <span class="font-bold text-base sm:text-xl">Point of Sale</span>
             </div>
         </template>
 
-        <div class="flex flex-col lg:flex-row gap-6 h-[calc(100vh-6rem)] -mt-6 -mx-4 sm:-mx-6 px-4 sm:px-6 py-6 bg-slate-100">
+        <div class="flex flex-col lg:flex-row gap-4 lg:gap-6 lg:h-[calc(100vh-6rem)] -mt-4 sm:-mt-6 -mx-4 sm:-mx-6 px-3 sm:px-6 py-4 sm:py-6 bg-slate-100">
             
             <!-- Left: Product Grid -->
-            <div class="flex-1 flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                                <!-- Search Bar -->
-                <div class="p-5 border-b border-slate-100 bg-white z-10">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+            <div class="flex-1 flex flex-col bg-white rounded-xl lg:rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
+                <!-- Search Bar -->
+                <div class="p-3 sm:p-5 border-b border-slate-100 bg-white z-10">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4 mb-3 sm:mb-4">
                         <div class="flex bg-slate-100 p-1 rounded-xl w-full sm:w-auto">
-                            <button @click="togglePriceMode('retail')" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all', priceMode === 'retail' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700']">Retail Mode</button>
-                            <button @click="togglePriceMode('wholesale')" :class="['flex-1 px-4 py-2 rounded-lg text-sm font-bold transition-all', priceMode === 'wholesale' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700']">Wholesale Mode</button>
+                            <button @click="togglePriceMode('retail')" :class="['flex-1 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all', priceMode === 'retail' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-700']">Retail</button>
+                            <button @click="togglePriceMode('wholesale')" :class="['flex-1 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all', priceMode === 'wholesale' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-700']">Wholesale</button>
                         </div>
                     </div>
-                    <div class="relative max-w-2xl">
-                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                            <Search class="h-5 w-5 text-slate-400" />
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                            <Search class="h-4 w-4 sm:h-5 sm:w-5 text-slate-400" />
                         </div>
                         <input 
                             v-model="searchQuery"
                             type="text" 
-                            class="block w-full pl-12 pr-4 py-3.5 border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all font-medium" 
-                            placeholder="Scan barcode or search products by name, SKU..." 
+                            class="block w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-3.5 border-slate-200 rounded-xl leading-5 bg-slate-50 placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all font-medium text-sm sm:text-base" 
+                            placeholder="Search products..." 
                         />
                     </div>
                 </div>
                 
                 <!-- Product List -->
-                <div class="flex-1 overflow-y-auto p-5 bg-slate-50/50">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 sm:gap-5">
+                <div class="flex-1 overflow-y-auto p-3 sm:p-5 bg-slate-50/50">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-2.5 sm:gap-5">
                         <div 
                             v-for="product in filteredProducts" 
                             :key="product.id"
@@ -308,49 +313,75 @@ const processCheckout = () => {
                             role="button"
                             tabindex="0"
                             :class="[
-                                'relative flex flex-col text-left p-4 sm:p-5 rounded-2xl border transition-all duration-300 group h-full w-full focus:outline-none focus:ring-2 focus:ring-amber-500',
+                                'relative flex flex-col text-left p-3 sm:p-5 rounded-xl sm:rounded-2xl border transition-all duration-200 group h-full w-full focus:outline-none focus:ring-2 focus:ring-amber-500',
                                 product.track_stock && product.current_stock <= 0 
                                     ? 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' 
-                                    : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-lg hover:-translate-y-1 active:scale-95 cursor-pointer'
+                                    : 'bg-white border-slate-200 hover:border-amber-400 hover:shadow-lg active:scale-[0.97] cursor-pointer'
                             ]"
                         >
-                            <!-- Stock Badge (Top Right) -->
-                            <div v-if="product.track_stock" class="absolute top-3 right-3">
-                                <span :class="['text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded-md', product.current_stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700']">
-                                    {{ product.current_stock }} in stock
+                            <!-- Stock Badge -->
+                            <div v-if="product.track_stock" class="absolute top-2 right-2 sm:top-3 sm:right-3">
+                                <span :class="['text-[8px] sm:text-[10px] uppercase tracking-wider font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-md', product.current_stock > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700']">
+                                    {{ product.current_stock }} <span class="hidden sm:inline">in stock</span>
                                 </span>
                             </div>
 
-                            <div class="flex-1 mt-6">
-                                <h3 class="font-bold text-slate-800 text-sm sm:text-base leading-tight group-hover:text-amber-600 transition-colors">{{ product.name }}</h3>
-                                <p class="text-xs text-slate-400 mt-1.5 font-medium">{{ product.sku || 'No SKU' }}</p>
+                            <div class="flex-1 mt-4 sm:mt-6">
+                                <h3 class="font-bold text-slate-800 text-xs sm:text-sm leading-tight group-hover:text-amber-600 transition-colors line-clamp-2">{{ product.name }}</h3>
+                                <p class="text-[10px] sm:text-xs text-slate-400 mt-1 font-medium truncate">{{ product.sku || 'No SKU' }}</p>
                             </div>
                             
-                                                        <div class="mt-4 pt-4 border-t border-slate-100 w-full">
-                                <span v-if="priceMode === 'wholesale'" class="text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-0.5 block">Wholesale</span>
-                                <span class="font-black text-slate-900 text-base sm:text-lg block truncate">{{ formatCurrency(priceMode === 'wholesale' ? product.wholesale_price : product.selling_price) }}</span>
+                            <div class="mt-2 sm:mt-4 pt-2 sm:pt-4 border-t border-slate-100 w-full">
+                                <span v-if="priceMode === 'wholesale'" class="text-[8px] sm:text-[10px] font-bold text-amber-500 uppercase tracking-wider mb-0.5 block">Wholesale</span>
+                                <span class="font-black text-slate-900 text-sm sm:text-lg block truncate">{{ formatCurrency(priceMode === 'wholesale' ? product.wholesale_price : product.selling_price) }}</span>
                             </div>
                         </div>
                     </div>
                     
                     <!-- Empty State -->
-                    <div v-if="filteredProducts.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400">
-                        <div class="bg-slate-100 p-6 rounded-full mb-4">
-                            <Search class="w-10 h-10 text-slate-300" />
+                    <div v-if="filteredProducts.length === 0" class="flex flex-col items-center justify-center h-full text-slate-400 py-12">
+                        <div class="bg-slate-100 p-4 sm:p-6 rounded-full mb-3 sm:mb-4">
+                            <Search class="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
                         </div>
-                        <p class="font-medium text-slate-600">No products found</p>
-                        <p class="text-sm mt-1">Try a different search term or scan another barcode.</p>
+                        <p class="font-medium text-slate-600 text-sm sm:text-base">No products found</p>
+                        <p class="text-xs sm:text-sm mt-1">Try a different search term.</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Right: Cart & Checkout -->
-            <div class="w-full lg:w-[380px] flex flex-col bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-shrink-0 min-h-0 h-full">
+            <!-- Mobile Floating Cart Button -->
+            <button 
+                v-if="form.items.length > 0"
+                @click="mobileCartOpen = true"
+                class="fixed bottom-4 right-4 z-40 lg:hidden flex items-center gap-2 px-5 py-3.5 rounded-full bg-amber-500 text-slate-900 font-black shadow-xl shadow-amber-500/30 active:scale-95 transition-all"
+            >
+                <ShoppingCart class="w-5 h-5" />
+                <span>{{ form.items.length }}</span>
+                <span class="text-sm">•</span>
+                <span class="text-sm">{{ formatCurrency(totalDue) }}</span>
+            </button>
+
+            <!-- Mobile Cart Bottom Sheet Backdrop -->
+            <div v-if="mobileCartOpen" @click="mobileCartOpen = false" class="fixed inset-0 z-40 bg-slate-900/70 backdrop-blur-sm lg:hidden transition-opacity"></div>
+
+            <!-- Right: Cart & Checkout (Desktop: sidebar, Mobile: bottom sheet) -->
+            <div 
+                :class="[
+                    'lg:w-[380px] flex flex-col bg-white shadow-sm border border-slate-200 overflow-hidden flex-shrink-0 min-h-0 transition-transform duration-300 ease-out',
+                    // Mobile: bottom sheet
+                    'fixed inset-x-0 bottom-0 z-50 lg:static lg:z-auto rounded-t-2xl lg:rounded-2xl max-h-[85vh] lg:max-h-none lg:h-full',
+                    mobileCartOpen ? 'translate-y-0' : 'translate-y-full lg:translate-y-0'
+                ]"
+            >
+                <!-- Mobile Sheet Handle -->
+                <div class="lg:hidden flex justify-center pt-2 pb-1 bg-white">
+                    <button @click="mobileCartOpen = false" class="w-10 h-1.5 rounded-full bg-slate-300"></button>
+                </div>
 
                 <!-- MAIN SCROLLABLE AREA (Settings + Cart) -->
                 <div class="flex-1 overflow-y-auto sidebar-scroll bg-slate-50/30 flex flex-col">
                     
-                    <!-- Settings Section (White background) -->
+                    <!-- Settings Section -->
                     <div class="bg-white border-b border-slate-200 flex-shrink-0">
                         <!-- Customer -->
                         <div class="p-3 border-b border-slate-100">
@@ -375,12 +406,12 @@ const processCheckout = () => {
                         <!-- Sale Status -->
                         <div class="p-3 border-b border-slate-100">
                             <label class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">Sale Status</label>
-                            <div class="grid grid-cols-3 gap-1">
+                            <div class="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
                                 <button v-for="opt in statusOpts" :key="opt.value" type="button" @click="form.status = opt.value"
-                                    :class="['flex flex-col items-center gap-1 py-1.5 px-1 rounded-lg border transition-all', form.status === opt.value ? 'border-amber-500 bg-amber-50 shadow-sm' : 'border-slate-100 bg-slate-50 hover:border-slate-200']"
+                                    :class="['flex flex-col items-center gap-1 py-1.5 px-2 sm:px-3 rounded-lg border transition-all flex-shrink-0 min-w-[56px]', form.status === opt.value ? 'border-amber-500 bg-amber-50 shadow-sm' : 'border-slate-100 bg-slate-50 hover:border-slate-200']"
                                 >
                                     <component :is="opt.icon" :class="['h-3.5 w-3.5', form.status === opt.value ? 'text-amber-600' : 'text-slate-400']" />
-                                    <span class="text-[9px] font-black text-slate-700 leading-tight text-center">{{ opt.label }}</span>
+                                    <span class="text-[9px] font-black text-slate-700 leading-tight text-center whitespace-nowrap">{{ opt.label }}</span>
                                 </button>
                             </div>
                         </div>
@@ -407,39 +438,31 @@ const processCheckout = () => {
 
                     <!-- Cart Items Section -->
                     <div class="flex-1 p-2 flex flex-col">
-                        <div v-if="form.items.length === 0" class="m-auto flex flex-col items-center justify-center text-slate-400 py-10">
-                            <ShoppingCart class="w-16 h-16 mb-4 text-slate-200" />
-                            <p class="font-medium">Your cart is empty</p>
-                            <p class="text-sm mt-1">Add items from the grid to get started</p>
+                        <div v-if="form.items.length === 0" class="m-auto flex flex-col items-center justify-center text-slate-400 py-8 sm:py-10">
+                            <ShoppingCart class="w-12 h-12 sm:w-16 sm:h-16 mb-3 sm:mb-4 text-slate-200" />
+                            <p class="font-medium text-sm sm:text-base">Your cart is empty</p>
+                            <p class="text-xs sm:text-sm mt-1">Add items from the grid to get started</p>
                         </div>
                     
-                        <div v-else class="space-y-2 p-3">
-                        <div v-for="(item, index) in form.items" :key="index" @click="openQuantityModalFromItem(item)" class="flex flex-col p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group">
-                            <div class="flex justify-between items-start mb-3">
-                                <span class="font-bold text-slate-800 text-sm pr-4 group-hover:text-amber-600 transition-colors">{{ item.name }}</span>
-                                <button @click.stop="removeItem(index)" class="text-slate-300 hover:text-rose-500 transition-colors p-1" title="Remove item">
+                        <div v-else class="space-y-2 p-2 sm:p-3">
+                            <div v-for="(item, index) in form.items" :key="index" @click="openQuantityModalFromItem(item)" class="flex items-center gap-3 p-3 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group">
+                                <div class="flex-1 min-w-0">
+                                    <span class="font-bold text-slate-800 text-sm block truncate group-hover:text-amber-600 transition-colors">{{ item.name }}</span>
+                                    <div class="flex items-center gap-2 mt-1">
+                                        <span class="text-xs text-slate-400">{{ item.quantity }} × {{ formatCurrency(item.unit_price) }}</span>
+                                    </div>
+                                </div>
+                                <span class="font-bold text-amber-600 text-sm whitespace-nowrap">{{ formatCurrency((item.quantity * item.unit_price) - item.discount_amount) }}</span>
+                                <button @click.stop="removeItem(index)" class="text-slate-300 hover:text-rose-500 transition-colors p-1 shrink-0" title="Remove item">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
-                            
-                            <div class="flex items-center justify-between mt-auto">
-                                <div class="flex items-center bg-slate-100 rounded-lg p-1" @click.stop>
-                                    <button @click="updateQuantity(item, -1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded-md transition-all"><Minus class="w-3 h-3" /></button>
-                                    <FormattedNumberInput v-model="item.quantity" class="w-12 text-center text-sm border-none bg-transparent focus:ring-0 p-0 font-bold text-slate-800" />
-                                    <button @click="updateQuantity(item, 1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded-md transition-all"><Plus class="w-3 h-3" /></button>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-xs text-slate-400 mb-0.5">{{ formatCurrency(item.unit_price) }} / ea</div>
-                                    <div class="font-bold text-amber-600">{{ formatCurrency((item.quantity * item.unit_price) - item.discount_amount) }}</div>
-                                </div>
-                            </div>
                         </div>
                     </div>
-                </div>
                 </div> <!-- End of MAIN SCROLLABLE AREA -->
 
                 <!-- Totals & Checkout -->
-                <div class="bg-slate-900 text-white rounded-t-2xl shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.3)] mt-auto p-4 sm:p-5 z-10 relative flex-shrink-0">
+                <div class="bg-slate-900 text-white rounded-t-xl sm:rounded-t-2xl shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.3)] mt-auto p-3 sm:p-5 z-10 relative flex-shrink-0">
                     <div v-if="taxEnabled" class="flex justify-between items-center mb-1.5 text-xs text-slate-400">
                         <span>Subtotal</span>
                         <span>{{ formatCurrency(subtotal) }}</span>
@@ -448,17 +471,17 @@ const processCheckout = () => {
                         <span>VAT ({{ taxRate }}%)</span>
                         <span>{{ formatCurrency(taxAmount) }}</span>
                     </div>
-                    <div class="flex justify-between items-center mb-4 border-t border-slate-700 pt-3">
-                        <span class="text-slate-300 font-bold text-base">Total Due</span>
-                        <span class="font-black text-white text-2xl tracking-tight">{{ formatCurrency(totalDue) }}</span>
+                    <div class="flex justify-between items-center mb-3 sm:mb-4 border-t border-slate-700 pt-2 sm:pt-3">
+                        <span class="text-slate-300 font-bold text-sm sm:text-base">Total Due</span>
+                        <span class="font-black text-white text-xl sm:text-2xl tracking-tight">{{ formatCurrency(totalDue) }}</span>
                     </div>
                     <button 
                         @click="openPayment" 
                         :disabled="form.items.length === 0"
-                        class="w-full flex items-center justify-center px-5 py-3.5 rounded-xl text-base font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 focus:ring-4 focus:ring-amber-500/30 disabled:opacity-50 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all transform active:scale-[0.98]"
+                        class="w-full flex items-center justify-center px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl text-sm sm:text-base font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 focus:ring-4 focus:ring-amber-500/30 disabled:opacity-50 disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed transition-all transform active:scale-[0.98]"
                     >
                         Charge {{ formatCurrency(totalDue) }}
-                        <ShoppingCart class="w-5 h-5 ml-2" />
+                        <ShoppingCart class="w-4 h-4 sm:w-5 sm:h-5 ml-2" />
                     </button>
                 </div>
             </div>
@@ -466,33 +489,38 @@ const processCheckout = () => {
 
         <!-- Payment Modal -->
         <div v-if="showPaymentModal" class="fixed inset-0 z-[100] overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div class="flex items-end sm:items-center justify-center min-h-screen sm:px-4 text-center sm:block sm:p-0">
                 <div class="fixed inset-0 transition-opacity" aria-hidden="true">
                     <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm transition-opacity" @click="showPaymentModal = false"></div>
                 </div>
 
                 <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div class="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-100">
-                    <div class="px-6 pt-6 pb-2">
+                <div class="inline-block align-bottom bg-white rounded-t-2xl sm:rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-slate-100 max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+                    <div class="px-4 sm:px-6 pt-5 sm:pt-6 pb-2">
                         <div class="text-center w-full">
-                            <h3 class="text-2xl font-black text-slate-900 mb-1">Payment</h3>
-                            <p class="text-slate-500 text-sm mb-6">Select a payment method and enter the amount received.</p>
+                            <div class="flex items-center justify-between sm:justify-center mb-4 sm:mb-0">
+                                <h3 class="text-xl sm:text-2xl font-black text-slate-900">Payment</h3>
+                                <button @click="showPaymentModal = false" class="sm:hidden w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                    <X class="w-4 h-4 text-slate-500" />
+                                </button>
+                            </div>
+                            <p class="text-slate-500 text-xs sm:text-sm mb-4 sm:mb-6">Select payment method and enter amount.</p>
                             
                             <!-- Error Display -->
-                            <div v-if="Object.keys(form.errors).length > 0" class="mb-6 p-4 bg-rose-50 text-rose-700 rounded-xl text-sm border border-rose-100 text-left">
+                            <div v-if="Object.keys(form.errors).length > 0" class="mb-4 sm:mb-6 p-3 sm:p-4 bg-rose-50 text-rose-700 rounded-xl text-sm border border-rose-100 text-left">
                                 <div class="font-bold mb-1">Please fix the following errors:</div>
                                 <ul class="list-disc pl-5">
                                     <li v-for="(error, key) in form.errors" :key="key">{{ error }}</li>
                                 </ul>
                             </div>
 
-                            <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 mb-6 text-center">
-                                <p class="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
-                                <p class="text-4xl font-black text-slate-900">{{ formatCurrency(totalDue) }}</p>
+                            <div class="bg-slate-50 p-4 sm:p-6 rounded-2xl border border-slate-100 mb-4 sm:mb-6 text-center">
+                                <p class="text-[10px] sm:text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Amount Due</p>
+                                <p class="text-3xl sm:text-4xl font-black text-slate-900">{{ formatCurrency(totalDue) }}</p>
                             </div>
                             
-                            <div class="mb-5 text-left">
+                            <div class="mb-4 sm:mb-5 text-left">
                                 <label class="block text-sm font-bold text-slate-700 mb-2">Discount Amount</label>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -502,18 +530,18 @@ const processCheckout = () => {
                                 </div>
                             </div>
                             
-                            <div class="space-y-5 text-left">
+                            <div class="space-y-4 sm:space-y-5 text-left">
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-2">Payment Method</label>
-                                    <div class="grid grid-cols-3 gap-3">
-                                        <button @click="paymentForm.method = 'cash'" :class="['flex flex-col items-center justify-center py-4 px-2 rounded-xl border-2 font-bold transition-all', paymentForm.method === 'cash' ? 'border-slate-900 bg-slate-900 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
-                                            <Banknote class="w-6 h-6 mb-2" /> Cash
+                                    <div class="grid grid-cols-3 gap-2 sm:gap-3">
+                                        <button @click="paymentForm.method = 'cash'" :class="['flex flex-col items-center justify-center py-3 sm:py-4 px-2 rounded-xl border-2 font-bold transition-all text-xs sm:text-sm', paymentForm.method === 'cash' ? 'border-slate-900 bg-slate-900 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
+                                            <Banknote class="w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2" /> Cash
                                         </button>
-                                        <button @click="paymentForm.method = 'mobile_money'" :class="['flex flex-col items-center justify-center py-4 px-2 rounded-xl border-2 font-bold transition-all text-center', paymentForm.method === 'mobile_money' ? 'border-amber-600 bg-amber-600 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
-                                            <CreditCard class="w-6 h-6 mb-2" /> Mobile Money
+                                        <button @click="paymentForm.method = 'mobile_money'" :class="['flex flex-col items-center justify-center py-3 sm:py-4 px-2 rounded-xl border-2 font-bold transition-all text-center text-xs sm:text-sm', paymentForm.method === 'mobile_money' ? 'border-amber-600 bg-amber-600 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
+                                            <CreditCard class="w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2" /> Mobile
                                         </button>
-                                        <button @click="paymentForm.method = 'bank_transfer'" :class="['flex flex-col items-center justify-center py-4 px-2 rounded-xl border-2 font-bold transition-all text-center', paymentForm.method === 'bank_transfer' ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
-                                            <Landmark class="w-6 h-6 mb-2" /> Bank Tx
+                                        <button @click="paymentForm.method = 'bank_transfer'" :class="['flex flex-col items-center justify-center py-3 sm:py-4 px-2 rounded-xl border-2 font-bold transition-all text-center text-xs sm:text-sm', paymentForm.method === 'bank_transfer' ? 'border-blue-600 bg-blue-600 text-white shadow-md' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300']">
+                                            <Landmark class="w-5 h-5 sm:w-6 sm:h-6 mb-1.5 sm:mb-2" /> Bank
                                         </button>
                                     </div>
                                 </div>
@@ -528,13 +556,13 @@ const processCheckout = () => {
                                 </div>
                                 
                                 <!-- Credit Sale Indicator & Deposit Presets -->
-                                <div v-if="form.status === 'credit'" class="p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 space-y-2.5">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
-                                            <CreditCard class="w-4 h-4 text-amber-600" />
-                                            Credit Sale (Mauzo ya Mkopo)
+                                <div v-if="form.status === 'credit'" class="p-3 sm:p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 space-y-2.5">
+                                    <div class="flex items-center justify-between flex-wrap gap-1">
+                                        <span class="text-[10px] sm:text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                            <CreditCard class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+                                            Credit Sale (Mkopo)
                                         </span>
-                                        <span class="text-xs font-mono font-bold text-amber-900">
+                                        <span class="text-[10px] sm:text-xs font-mono font-bold text-amber-900">
                                             Deni: {{ formatCurrency(Math.max(0, totalDue - (Number(paymentForm.amount) || 0))) }}
                                         </span>
                                     </div>
@@ -543,46 +571,46 @@ const processCheckout = () => {
                                             type="button"
                                             @click="paymentForm.amount = 0"
                                             :class="[
-                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                'px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-xl transition-all',
                                                 paymentForm.amount === 0 
                                                     ? 'bg-slate-900 text-white shadow-xs' 
                                                     : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
                                             ]"
                                         >
-                                            Full Credit (0 TZS)
+                                            Full Credit
                                         </button>
                                         <button
                                             v-if="totalDue > 0"
                                             type="button"
                                             @click="paymentForm.amount = Math.round(totalDue * 0.25)"
                                             :class="[
-                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                'px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-xl transition-all',
                                                 paymentForm.amount === Math.round(totalDue * 0.25)
                                                     ? 'bg-amber-500 text-white shadow-xs' 
                                                     : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
                                             ]"
                                         >
-                                            25% Deposit
+                                            25%
                                         </button>
                                         <button
                                             v-if="totalDue > 0"
                                             type="button"
                                             @click="paymentForm.amount = Math.round(totalDue * 0.5)"
                                             :class="[
-                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                'px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-xl transition-all',
                                                 paymentForm.amount === Math.round(totalDue * 0.5)
                                                     ? 'bg-amber-500 text-white shadow-xs' 
                                                     : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
                                             ]"
                                         >
-                                            50% Deposit
+                                            50%
                                         </button>
                                         <button
                                             v-if="totalDue > 0"
                                             type="button"
                                             @click="paymentForm.amount = totalDue"
                                             :class="[
-                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                'px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-bold rounded-xl transition-all',
                                                 paymentForm.amount === totalDue
                                                     ? 'bg-emerald-600 text-white shadow-xs' 
                                                     : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
@@ -591,7 +619,7 @@ const processCheckout = () => {
                                             Full Paid
                                         </button>
                                     </div>
-                                    <p v-if="!form.customer_id" class="text-[11px] text-amber-800 font-medium flex items-center gap-1.5 pt-1">
+                                    <p v-if="!form.customer_id" class="text-[10px] sm:text-[11px] text-amber-800 font-medium flex items-center gap-1.5 pt-1">
                                         <AlertCircle class="w-3.5 h-3.5 shrink-0 text-amber-600" />
                                         Mteja hajachaguliwa. Unashauriwa kuchagua mteja ili deni liingie kwenye rekodi zake.
                                     </p>
@@ -599,28 +627,28 @@ const processCheckout = () => {
 
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-2">
-                                        {{ form.status === 'credit' ? 'Down Payment / Kianzio Kilicholipwa (TZS)' : 'Amount Received' }}
+                                        {{ form.status === 'credit' ? 'Down Payment (TZS)' : 'Amount Received' }}
                                     </label>
                                     <div class="relative rounded-xl shadow-sm">
-                                        <FormattedNumberInput v-model="paymentForm.amount" class="block w-full py-4 pl-4 pr-4 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-amber-500 text-2xl font-black text-slate-900 transition-colors" />
+                                        <FormattedNumberInput v-model="paymentForm.amount" class="block w-full py-3.5 sm:py-4 pl-4 pr-4 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-amber-500 text-xl sm:text-2xl font-black text-slate-900 transition-colors" />
                                     </div>
                                     <div v-if="paymentForm.amount > totalDue" class="mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-lg flex justify-between items-center border border-emerald-100">
-                                        <span class="font-bold text-sm uppercase tracking-wide">Change Due</span>
-                                        <span class="font-black text-lg">{{ formatCurrency(paymentForm.amount - totalDue) }}</span>
+                                        <span class="font-bold text-xs sm:text-sm uppercase tracking-wide">Change Due</span>
+                                        <span class="font-black text-base sm:text-lg">{{ formatCurrency(paymentForm.amount - totalDue) }}</span>
                                     </div>
                                     <div v-else-if="form.status === 'credit' && paymentForm.amount < totalDue" class="mt-3 p-3 bg-rose-50 text-rose-800 rounded-lg flex justify-between items-center border border-rose-100">
-                                        <span class="font-bold text-xs uppercase tracking-wide">Remaining Credit Balance</span>
-                                        <span class="font-black text-base font-mono">{{ formatCurrency(totalDue - (Number(paymentForm.amount) || 0)) }}</span>
+                                        <span class="font-bold text-[10px] sm:text-xs uppercase tracking-wide">Remaining Credit</span>
+                                        <span class="font-black text-sm sm:text-base font-mono">{{ formatCurrency(totalDue - (Number(paymentForm.amount) || 0)) }}</span>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div class="px-6 py-5 sm:flex sm:flex-row-reverse mt-4 gap-3 border-t border-slate-100 bg-slate-50">
-                        <button @click="processCheckout" :disabled="form.processing" type="button" class="w-full sm:w-auto flex-1 inline-flex justify-center items-center rounded-xl border border-transparent px-6 py-3.5 bg-amber-500 text-base font-bold text-slate-900 shadow-sm hover:bg-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-500/30 disabled:opacity-50 transition-all">
+                    <div class="px-4 sm:px-6 py-4 sm:py-5 flex flex-col-reverse sm:flex-row sm:flex-row-reverse mt-2 sm:mt-4 gap-2 sm:gap-3 border-t border-slate-100 bg-slate-50">
+                        <button @click="processCheckout" :disabled="form.processing" type="button" class="w-full sm:w-auto sm:flex-1 inline-flex justify-center items-center rounded-xl border border-transparent px-6 py-3.5 bg-amber-500 text-sm sm:text-base font-bold text-slate-900 shadow-sm hover:bg-amber-400 focus:outline-none focus:ring-4 focus:ring-amber-500/30 disabled:opacity-50 transition-all">
                             {{ form.processing ? 'Processing...' : 'Complete Sale' }}
                         </button>
-                        <button @click="showPaymentModal = false" type="button" class="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center rounded-xl border-2 border-slate-200 px-6 py-3.5 bg-white text-base font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 focus:outline-none transition-all">
+                        <button @click="showPaymentModal = false" type="button" class="w-full sm:w-auto inline-flex justify-center items-center rounded-xl border-2 border-slate-200 px-6 py-3.5 bg-white text-sm sm:text-base font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 focus:outline-none transition-all">
                             Cancel
                         </button>
                     </div>
@@ -628,9 +656,9 @@ const processCheckout = () => {
             </div>
         </div>
 
-        <!-- Quantity Picker Modal (Matches design & colors) -->
+        <!-- Quantity Picker Modal -->
         <div v-if="showQuantityModal" class="fixed inset-0 z-[100] overflow-y-auto">
-            <div class="flex items-center justify-center min-h-screen px-4 p-4 text-center sm:block sm:p-0">
+            <div class="flex items-end sm:items-center justify-center min-h-screen sm:px-4 text-center sm:block sm:p-0">
                 <div class="fixed inset-0 transition-opacity" aria-hidden="true">
                     <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity" @click="closeQuantityModal"></div>
                 </div>
@@ -639,85 +667,85 @@ const processCheckout = () => {
 
                 <div
                     v-if="activeProductForModal"
-                    class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-slate-100 p-6 space-y-5"
+                    class="inline-block align-bottom bg-white rounded-t-3xl sm:rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-slate-100 p-4 sm:p-6 space-y-4 sm:space-y-5"
                 >
                     <!-- Header -->
                     <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-3.5 min-w-0">
-                            <div class="w-14 h-14 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-center p-2.5 shrink-0 shadow-xs">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-center p-2 sm:p-2.5 shrink-0 shadow-xs">
                                 <img
                                     v-if="activeProductForModal.image"
                                     :src="activeProductForModal.image"
-                                    class="w-full h-full object-cover rounded-xl"
+                                    class="w-full h-full object-cover rounded-lg sm:rounded-xl"
                                     alt="Product"
                                 />
-                                <Package v-else class="w-7 h-7 text-amber-500" />
+                                <Package v-else class="w-5 h-5 sm:w-7 sm:h-7 text-amber-500" />
                             </div>
                             <div class="min-w-0">
-                                <h2 class="text-xl font-black text-slate-900 leading-snug uppercase truncate">
+                                <h2 class="text-base sm:text-xl font-black text-slate-900 leading-snug uppercase truncate">
                                     {{ activeProductForModal.name }}
                                 </h2>
-                                <span class="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200/80 mt-1">
+                                <span class="inline-flex items-center px-2.5 sm:px-3 py-0.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200/80 mt-1">
                                     {{ formatCurrency(activeProductUnitPrice) }}
                                 </span>
                             </div>
                         </div>
                         <button
                             @click="closeQuantityModal"
-                            class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors shrink-0"
+                            class="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors shrink-0"
                             title="Close"
                         >
-                            <X class="w-5 h-5" />
+                            <X class="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                     </div>
 
                     <!-- Quantity Stepper Box -->
-                    <div class="bg-slate-50/80 border border-slate-200/90 rounded-3xl p-5 text-center">
-                        <span class="text-[11px] font-black tracking-widest text-slate-400 uppercase mb-3 block">
+                    <div class="bg-slate-50/80 border border-slate-200/90 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-center">
+                        <span class="text-[10px] sm:text-[11px] font-black tracking-widest text-slate-400 uppercase mb-2 sm:mb-3 block">
                             QUANTITY (IDADI)
                         </span>
-                        <div class="flex items-center justify-center gap-4">
+                        <div class="flex items-center justify-center gap-3 sm:gap-4">
                             <button
                                 type="button"
                                 @click="decrementModalQty"
-                                class="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-2xl font-bold text-slate-700 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+                                class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-white border-2 border-slate-200 text-2xl font-bold text-slate-700 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
                             >
-                                <Minus class="w-6 h-6 stroke-[2.5]" />
+                                <Minus class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
                             </button>
-                            <div class="border-2 border-amber-500 rounded-2xl w-36 h-16 flex items-center justify-center bg-white shadow-xs">
+                            <div class="border-2 border-amber-500 rounded-xl sm:rounded-2xl w-28 sm:w-36 h-14 sm:h-16 flex items-center justify-center bg-white shadow-xs">
                                 <input
                                     v-model.number="modalQty"
                                     type="number"
                                     min="1"
                                     :max="activeProductForModal.track_stock ? activeProductForModal.current_stock : 999999"
-                                    class="w-full text-center text-3xl font-black text-slate-900 font-mono border-none focus:ring-0 p-0 bg-transparent"
+                                    class="w-full text-center text-2xl sm:text-3xl font-black text-slate-900 font-mono border-none focus:ring-0 p-0 bg-transparent"
                                 />
                             </div>
                             <button
                                 type="button"
                                 @click="incrementModalQty"
-                                class="w-14 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-2xl font-bold flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-amber-500/25"
+                                class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-2xl font-bold flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-amber-500/25"
                             >
-                                <Plus class="w-6 h-6 stroke-[2.5]" />
+                                <Plus class="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.5]" />
                             </button>
                         </div>
                     </div>
 
                     <!-- Quick Presets -->
                     <div class="space-y-2">
-                        <div class="flex items-center justify-between text-[11px] font-black tracking-wider text-slate-400 uppercase px-1">
+                        <div class="flex items-center justify-between text-[10px] sm:text-[11px] font-black tracking-wider text-slate-400 uppercase px-1">
                             <span>QUICK PRESETS</span>
                             <span>ONE-TAP</span>
                         </div>
-                        <div class="space-y-2">
-                            <div v-for="(row, rIdx) in quickPresets" :key="rIdx" class="grid grid-cols-6 gap-2">
+                        <div class="space-y-1.5 sm:space-y-2">
+                            <div v-for="(row, rIdx) in quickPresets" :key="rIdx" class="grid grid-cols-6 gap-1.5 sm:gap-2">
                                 <button
                                     v-for="preset in row"
                                     :key="preset"
                                     type="button"
                                     @click="setPresetQty(preset)"
                                     :class="[
-                                        'py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95',
+                                        'py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all active:scale-95',
                                         modalQty === preset
                                             ? 'bg-slate-900 text-white shadow-xs'
                                             : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
@@ -730,35 +758,35 @@ const processCheckout = () => {
                     </div>
 
                     <!-- Total Jumla Bar -->
-                    <div class="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-md">
+                    <div class="bg-slate-900 text-white rounded-xl sm:rounded-2xl p-3 sm:p-4 flex items-center justify-between shadow-md">
                         <div>
-                            <span class="text-[10px] font-black tracking-wider text-slate-400 uppercase block">
+                            <span class="text-[9px] sm:text-[10px] font-black tracking-wider text-slate-400 uppercase block">
                                 TOTAL (JUMLA)
                             </span>
-                            <span class="text-xs text-slate-300 font-medium mt-0.5 block">
+                            <span class="text-[10px] sm:text-xs text-slate-300 font-medium mt-0.5 block">
                                 {{ formatCurrency(activeProductUnitPrice) }} × {{ modalQty || 0 }}
                             </span>
                         </div>
-                        <span class="text-2xl font-black text-emerald-400 font-mono">
+                        <span class="text-xl sm:text-2xl font-black text-emerald-400 font-mono">
                             {{ formatCurrency(modalTotalAmount) }}
                         </span>
                     </div>
 
                     <!-- Actions Footer -->
-                    <div class="flex items-center gap-3 pt-1">
+                    <div class="flex items-center gap-2 sm:gap-3 pt-1">
                         <button
                             type="button"
                             @click="closeQuantityModal"
-                            class="px-6 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm uppercase tracking-wider transition-colors"
+                            class="px-4 sm:px-6 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm uppercase tracking-wider transition-colors"
                         >
                             CANCEL
                         </button>
                         <button
                             type="button"
                             @click="confirmAddFromModal"
-                            class="flex-1 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                            class="flex-1 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
-                            <CheckCircle class="w-5 h-5 stroke-[2.5]" />
+                            <CheckCircle class="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.5]" />
                             <span>ADD TO BILL</span>
                         </button>
                     </div>

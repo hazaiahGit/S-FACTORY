@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
 import {
     UserCog, LayoutDashboard, Package, ShoppingCart, Users, Settings,
@@ -14,10 +14,33 @@ const user = page.props.auth.user;
 const business = page.props.auth.business;
 const branch = page.props.auth.branch;
 
-const sidebarOpen = ref(true);
+// On mobile (< 1024px), sidebar should be closed by default. On desktop (>= 1024px), open by default.
+const isClient = typeof window !== 'undefined';
+const sidebarOpen = ref(isClient ? window.innerWidth >= 1024 : false);
+
 const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value;
 };
+
+// Automatically keep sidebar closed on mobile after navigating
+let removeNavListener = null;
+onMounted(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+        sidebarOpen.value = false;
+    }
+
+    removeNavListener = router.on('navigate', () => {
+        if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            sidebarOpen.value = false;
+        }
+    });
+});
+
+onUnmounted(() => {
+    if (removeNavListener) {
+        removeNavListener();
+    }
+});
 
 const notifications = computed(() => page.props.auth.recent_notifications ?? []);
 const unreadCount = computed(() => page.props.auth.notifications_unread_count ?? 0);

@@ -212,12 +212,20 @@ class SaleService
 
             $newPaid = $sale->paid_amount + $amount;
             $newBalance = $sale->total_amount - $newPaid;
+            $newPaymentStatus = $this->calculatePaymentStatus($sale->total_amount, $newPaid);
 
-            $sale->update([
+            $updateData = [
                 'paid_amount' => $newPaid,
                 'balance_amount' => $newBalance,
-                'payment_status' => $this->calculatePaymentStatus($sale->total_amount, $newPaid),
-            ]);
+                'payment_status' => $newPaymentStatus,
+            ];
+
+            // When a credit sale is fully paid, update the sale status to 'paid'
+            if ($newPaymentStatus === 'paid' && in_array($sale->status, ['credit', 'confirmed', 'invoiced'])) {
+                $updateData['status'] = 'paid';
+            }
+
+            $sale->update($updateData);
 
             // Update customer balance
             if ($sale->customer_id) {
