@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, Truck, CheckCircle, Package, MapPin, ThumbsUp } from '@lucide/vue';
+import { ArrowLeft, Truck, CheckCircle, Package, MapPin, ThumbsUp, Zap } from '@lucide/vue';
 
 const props = defineProps({
     transfer: Object,
@@ -10,12 +10,15 @@ const props = defineProps({
 
 const page = usePage();
 const userRoles = page.props.auth.roles ?? [];
-const isSuperAdmin = userRoles.includes('Super Admin');
+const isSuperAdmin = userRoles.includes('Super Admin') || userRoles.includes('Admin') || props.isTenantAdmin;
 const isManager = userRoles.includes('Manager');
-const canApprove = isSuperAdmin || isManager;
+const canManage = isSuperAdmin || isManager;
+const canApprove = canManage;
 
 const isDestination = props.transfer.to_branch_id === props.currentBranchId;
 const isSource = props.transfer.from_branch_id === props.currentBranchId;
+const canDispatch = canManage || isSource;
+const canReceive = canManage || isDestination;
 
 const formatNumber = (value) => {
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value || 0);
@@ -33,14 +36,20 @@ const approveTransfer = () => {
 };
 
 const dispatchTransfer = () => {
-    if (confirm('Confirm dispatch? This will immediately reduce stock from your branch.')) {
+    if (confirm('Confirm dispatch? This will immediately reduce stock from the source branch.')) {
         router.post(route('stock-transfers.dispatch', props.transfer.id));
     }
 };
 
 const receiveTransfer = () => {
-    if (confirm('Confirm receipt? This will immediately add stock to your branch.')) {
+    if (confirm('Confirm receipt? This will immediately add stock to the destination branch.')) {
         router.post(route('stock-transfers.receive', props.transfer.id));
+    }
+};
+
+const completeTransfer = () => {
+    if (confirm('Instantly complete this transfer? This will deduct stock from source and add it to the destination branch immediately.')) {
+        router.post(route('stock-transfers.complete', props.transfer.id));
     }
 };
 
@@ -97,7 +106,7 @@ const stepIndex = (status) => steps.findIndex(s => s.key === status);
 
                     <!-- Step 2: Source branch dispatches after approval -->
                     <button
-                        v-if="transfer.status === 'approved' && isSource"
+                        v-if="transfer.status === 'approved' && canDispatch"
                         @click="dispatchTransfer"
                         class="inline-flex items-center justify-center px-4 py-2 rounded-lg shadow-sm text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors"
                     >
@@ -107,12 +116,23 @@ const stepIndex = (status) => steps.findIndex(s => s.key === status);
 
                     <!-- Step 3: Destination branch confirms receipt -->
                     <button
-                        v-if="transfer.status === 'dispatched' && isDestination"
+                        v-if="transfer.status === 'dispatched' && canReceive"
                         @click="receiveTransfer"
                         class="inline-flex items-center justify-center px-4 py-2 rounded-lg shadow-sm text-sm font-bold text-slate-900 bg-amber-400 hover:bg-amber-500 transition-colors"
                     >
                         <CheckCircle class="w-4 h-4 mr-2" />
                         Confirm Receipt
+                    </button>
+
+                    <!-- Instant Complete: Move stock immediately in one click -->
+                    <button
+                        v-if="transfer.status !== 'received' && canManage"
+                        @click="completeTransfer"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded-lg shadow-sm text-sm font-bold text-emerald-800 bg-emerald-100 hover:bg-emerald-200 border border-emerald-300 transition-colors"
+                        title="Instantly dispatch and receive in one click"
+                    >
+                        <Zap class="w-4 h-4 mr-2 text-emerald-600" />
+                        Complete Transfer (1-Click)
                     </button>
                 </div>
             </div>

@@ -2,10 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
+use App\Models\Product;
 use App\Models\Stock;
 use App\Models\StockMovement;
-use App\Models\Product;
-use App\Models\AuditLog;
+use App\Models\StockTransfer;
 use Illuminate\Support\Facades\DB;
 
 class StockService
@@ -20,21 +21,24 @@ class StockService
         float $quantity,
         float $unitCost,
         string $movementType,
-        string $referenceType = null,
-        int $referenceId = null,
-        string $referenceNumber = null,
-        string $notes = null,
-        \DateTime|string $date = null
+        ?string $referenceType = null,
+        ?int $referenceId = null,
+        ?string $referenceNumber = null,
+        ?string $notes = null,
+        \DateTime|string|null $date = null
     ): Stock {
         return DB::transaction(function () use (
             $branchId, $productId, $quantity, $unitCost,
             $movementType, $referenceType, $referenceId,
             $referenceNumber, $notes, $date
         ) {
+            $product = Product::find($productId);
+            $businessId = $product?->business_id ?? Branch::find($branchId)?->business_id ?? auth()->user()?->business_id;
+
             $stock = Stock::firstOrCreate(
                 ['branch_id' => $branchId, 'product_id' => $productId],
                 [
-                    'business_id' => auth()->user()->business_id,
+                    'business_id' => $businessId,
                     'quantity' => 0,
                     'reserved_quantity' => 0,
                     'damaged_quantity' => 0,
@@ -65,7 +69,7 @@ class StockService
 
             // Record movement
             StockMovement::create([
-                'business_id' => auth()->user()->business_id,
+                'business_id' => $stock->business_id ?? $businessId,
                 'branch_id' => $branchId,
                 'product_id' => $productId,
                 'user_id' => auth()->id(),
@@ -95,11 +99,11 @@ class StockService
         int $productId,
         float $quantity,
         string $movementType,
-        string $referenceType = null,
-        int $referenceId = null,
-        string $referenceNumber = null,
-        string $notes = null,
-        \DateTime|string $date = null,
+        ?string $referenceType = null,
+        ?int $referenceId = null,
+        ?string $referenceNumber = null,
+        ?string $notes = null,
+        \DateTime|string|null $date = null,
         bool $allowNegative = false
     ): Stock {
         return DB::transaction(function () use (
@@ -112,11 +116,12 @@ class StockService
                 ->lockForUpdate()
                 ->first();
 
-            if (!$stock) {
-                if (!$allowNegative) {
+            if (! $stock) {
+                if (! $allowNegative) {
                     throw new \RuntimeException('No stock record found for this product at this branch.');
                 }
-                $businessId = auth()->user()->business_id;
+                $product = Product::find($productId);
+                $businessId = $product?->business_id ?? Branch::find($branchId)?->business_id ?? auth()->user()?->business_id;
                 $stock = Stock::create([
                     'business_id' => $businessId,
                     'branch_id' => $branchId,
@@ -128,7 +133,7 @@ class StockService
             }
 
             $prevQty = (float) $stock->quantity;
-            if (!$allowNegative && $prevQty < $quantity) {
+            if (! $allowNegative && $prevQty < $quantity) {
                 $product = Product::find($productId);
                 throw new \RuntimeException(
                     "Insufficient stock for '{$product->name}'. Available: {$prevQty}, Required: {$quantity}"
@@ -143,8 +148,11 @@ class StockService
                 'stock_value' => round($newQty * $avgCost, 2),
             ]);
 
+            $product = Product::find($productId);
+            $businessId = $stock->business_id ?? $product?->business_id ?? Branch::find($branchId)?->business_id ?? auth()->user()?->business_id;
+
             StockMovement::create([
-                'business_id' => auth()->user()->business_id,
+                'business_id' => $businessId,
                 'branch_id' => $branchId,
                 'product_id' => $productId,
                 'user_id' => auth()->id(),
@@ -161,6 +169,11 @@ class StockService
                 'transaction_date' => $date ?? today(),
             ]);
 
+            $product = Product::find($productId);
+            if ($product && $product->track_stock && $product->min_stock > 0 && $newQty <= $product->min_stock) {
+                app(NotificationService::class)->notifyLowStock($branchId, $product, $newQty, (float) $product->min_stock);
+            }
+
             return $stock->fresh();
         });
     }
@@ -168,16 +181,19 @@ class StockService
     /**
      * Get current stock level for a product at a branch.
      */
-        /**
+    /**
      * Reserve stock for an order (e.g. Draft / On Hold).
      */
     public function reserve(int $branchId, int $productId, float $quantity): Stock
     {
         return DB::transaction(function () use ($branchId, $productId, $quantity) {
+            $product = Product::find($productId);
+            $businessId = $product?->business_id ?? Branch::find($branchId)?->business_id ?? auth()->user()?->business_id;
+
             $stock = Stock::firstOrCreate(
                 ['branch_id' => $branchId, 'product_id' => $productId],
                 [
-                    'business_id' => auth()->user()->business_id,
+                    'business_id' => $businessId,
                     'quantity' => 0,
                     'reserved_quantity' => 0,
                     'damaged_quantity' => 0,
@@ -206,15 +222,17 @@ class StockService
                 $newReserved = max(0, $stock->reserved_quantity - $quantity);
                 $stock->update(['reserved_quantity' => $newReserved]);
             }
-            return $stock ?? new Stock();
+
+            return $stock ?? new Stock;
         });
     }
+
     public function getStock(int $branchId, int $productId): float
     {
         $stock = Stock::where('branch_id', $branchId)
             ->where('product_id', $productId)
             ->first();
-            
+
         return $stock ? $stock->available_quantity : 0;
     }
 
@@ -232,6 +250,7 @@ class StockService
     public function hasEnoughStock(int $branchId, int $productId, float $required): bool
     {
         $available = $this->getStock($branchId, $productId);
+
         return $available >= $required;
     }
 
@@ -244,9 +263,9 @@ class StockService
             ->where('branch_id', $branchId)
             ->whereHas('product', function ($q) use ($businessId) {
                 $q->where('business_id', $businessId)
-                  ->where('is_active', true)
-                  ->where('track_stock', true)
-                  ->where('min_stock', '>', 0);
+                    ->where('is_active', true)
+                    ->where('track_stock', true)
+                    ->where('min_stock', '>', 0);
             })
             ->get()
             ->filter(function ($s) {
@@ -270,7 +289,7 @@ class StockService
             $productId,
             $quantity,
             'stock_transfer_out',
-            \App\Models\StockTransfer::class,
+            StockTransfer::class,
             $transferId,
             $referenceNumber
         );
@@ -290,7 +309,7 @@ class StockService
             $quantity,
             $unitCost,
             'stock_transfer_in',
-            \App\Models\StockTransfer::class,
+            StockTransfer::class,
             $transferId,
             $referenceNumber
         );

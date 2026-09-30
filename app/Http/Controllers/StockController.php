@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Stock;
 use App\Models\StockMovement;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -19,11 +20,13 @@ class StockController extends Controller
 
         $stocks = Stock::with(['product', 'branch'])
             ->where('business_id', $user->business_id)
-            ->where('branch_id', $user->active_branch_id)
+            ->when($user->active_branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->when($request->search, function ($query, $search) {
                 $query->whereHas('product', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('sku', 'like', "%{$search}%");
+                        ->orWhere('sku', 'like', "%{$search}%");
                 });
             })
             ->orderBy('id', 'desc')
@@ -45,19 +48,21 @@ class StockController extends Controller
 
         $movements = StockMovement::with(['product', 'user', 'branch'])
             ->where('business_id', $user->business_id)
-            ->where('branch_id', $user->active_branch_id)
+            ->when($user->active_branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('product', function ($q2) use ($search) {
                         $q2->where('name', 'like', "%{$search}%")
-                           ->orWhere('sku', 'like', "%{$search}%");
+                            ->orWhere('sku', 'like', "%{$search}%");
                     })
-                    ->orWhere('movement_type', 'like', "%{$search}%")
-                    ->orWhere('reference_number', 'like', "%{$search}%")
-                    ->orWhere('transaction_date', 'like', "%{$search}%")
-                    ->orWhere('quantity_change', 'like', "%{$search}%")
-                    ->orWhere('quantity_after', 'like', "%{$search}%")
-                    ->orWhere('unit_cost', 'like', "%{$search}%");
+                        ->orWhere('movement_type', 'like', "%{$search}%")
+                        ->orWhere('reference_number', 'like', "%{$search}%")
+                        ->orWhere('transaction_date', 'like', "%{$search}%")
+                        ->orWhere('quantity_change', 'like', "%{$search}%")
+                        ->orWhere('quantity_after', 'like', "%{$search}%")
+                        ->orWhere('unit_cost', 'like', "%{$search}%");
                 });
             })
             ->latest()
@@ -70,12 +75,12 @@ class StockController extends Controller
         ]);
     }
 
-    public function destroyMovement(Request $request, \App\Models\StockMovement $movement)
+    public function destroyMovement(Request $request, StockMovement $movement)
     {
         $user = $request->user();
-        
+
         // Ensure user has admin rights
-        if (!$user->hasRole('Super Admin')) {
+        if (! $user->hasRole('Super Admin')) {
             return back()->with('error', 'Only Super Admins can delete audit trails.');
         }
 
@@ -83,9 +88,9 @@ class StockController extends Controller
             abort(403);
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($movement) {
+        DB::transaction(function () use ($movement) {
             // Revert stock quantity
-            $stock = \App\Models\Stock::where('product_id', $movement->product_id)
+            $stock = Stock::where('product_id', $movement->product_id)
                 ->where('branch_id', $movement->branch_id)
                 ->first();
 

@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Validation\Rule;
 
 class CustomerController extends Controller
 {
@@ -17,8 +16,8 @@ class CustomerController extends Controller
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('phone', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             })
             ->withSum('sales', 'total_amount')
@@ -29,7 +28,7 @@ class CustomerController extends Controller
 
         return Inertia::render('Customers/Index', [
             'customers' => $customers,
-            'filters' => $request->only(['search'])
+            'filters' => $request->only(['search']),
         ]);
     }
 
@@ -58,9 +57,10 @@ class CustomerController extends Controller
 
         try {
             Customer::create($validated);
+
             return redirect()->route('customers.index')->with('success', 'Customer created successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error creating customer: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error creating customer: '.$e->getMessage());
         }
     }
 
@@ -76,6 +76,7 @@ class CustomerController extends Controller
             ->withQueryString();
 
         $payments = $customer->payments()
+            ->with('sale')
             ->latest()
             ->paginate(10, ['*'], 'payments_page')
             ->withQueryString();
@@ -92,7 +93,7 @@ class CustomerController extends Controller
                 'total_sales' => $totalSales,
                 'total_paid' => $totalPaid,
                 'balance' => $balance,
-            ]
+            ],
         ]);
     }
 
@@ -103,7 +104,7 @@ class CustomerController extends Controller
         }
 
         return Inertia::render('Customers/Edit', [
-            'customer' => $customer
+            'customer' => $customer,
         ]);
     }
 
@@ -126,9 +127,10 @@ class CustomerController extends Controller
 
         try {
             $customer->update($validated);
+
             return redirect()->route('customers.index')->with('success', 'Customer updated successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error updating customer: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error updating customer: '.$e->getMessage());
         }
     }
 
@@ -144,9 +146,10 @@ class CustomerController extends Controller
 
         try {
             $customer->delete();
+
             return redirect()->back()->with('success', 'Customer deleted successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error deleting customer: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error deleting customer: '.$e->getMessage());
         }
     }
 }

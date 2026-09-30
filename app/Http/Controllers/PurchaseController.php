@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Purchase;
 use App\Models\Product;
+use App\Models\ProductBatch;
+use App\Models\Purchase;
+use App\Models\PurchaseItem;
 use App\Models\Supplier;
+use App\Services\NumberGeneratorService;
 use App\Services\PurchaseService;
+use App\Services\StockService;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class PurchaseController extends Controller
 {
@@ -26,7 +29,9 @@ class PurchaseController extends Controller
 
         $purchases = Purchase::with(['supplier', 'items'])
             ->where('business_id', $businessId)
-            ->where('branch_id', request()->user()->active_branch_id)
+            ->when(request()->user()->active_branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->when($request->date, function ($query, $date) {
                 $query->whereDate('created_at', $date);
             })
@@ -39,7 +44,7 @@ class PurchaseController extends Controller
 
         return Inertia::render('Purchases/Index', [
             'purchases' => $purchases,
-            'filters' => $request->only(['date', 'status'])
+            'filters' => $request->only(['date', 'status']),
         ]);
     }
 
@@ -81,11 +86,11 @@ class PurchaseController extends Controller
 
         try {
             $purchase = $this->purchaseService->create($validated);
-            
+
             // Redirect to index instead of show, since we might not have a show page yet
             return redirect()->route('purchases.index')->with('success', 'Purchase created successfully.');
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Error creating purchase: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Error creating purchase: '.$e->getMessage());
         }
     }
 
@@ -98,7 +103,7 @@ class PurchaseController extends Controller
         $purchase->load(['supplier', 'items.product', 'payments']);
 
         return Inertia::render('Purchases/Show', [
-            'purchase' => $purchase
+            'purchase' => $purchase,
         ]);
     }
 
@@ -143,9 +148,9 @@ class PurchaseController extends Controller
 
         try {
             DB::beginTransaction();
-            
-            $stockService = app(\App\Services\StockService::class);
-            $numberGenerator = app(\App\Services\NumberGeneratorService::class);
+
+            $stockService = app(StockService::class);
+            $numberGenerator = app(NumberGeneratorService::class);
 
             // Revert old items and stock
             foreach ($purchase->items as $oldItem) {
@@ -160,19 +165,19 @@ class PurchaseController extends Controller
                     $purchase->purchase_number,
                     'Reverting stock for edit'
                 );
-                
+
                 // Delete batch
                 if ($oldItem->batch_id) {
-                    \App\Models\ProductBatch::where('id', $oldItem->batch_id)->delete();
+                    ProductBatch::where('id', $oldItem->batch_id)->delete();
                 }
-                
+
                 // Delete item
                 $oldItem->delete();
             }
 
             // Recalculate totals
             $subtotal = 0;
-            $totalLandedCost = (float)($validated['transport_cost'] ?? 0) + (float)($validated['other_costs'] ?? 0);
+            $totalLandedCost = (float) ($validated['transport_cost'] ?? 0) + (float) ($validated['other_costs'] ?? 0);
             $totalItemCost = 0;
 
             foreach ($validated['items'] as &$itemData) {
@@ -194,7 +199,7 @@ class PurchaseController extends Controller
 
                 $batchNumber = $numberGenerator->generateBatchNumber($purchase->business_id);
 
-                $batch = \App\Models\ProductBatch::create([
+                $batch = ProductBatch::create([
                     'business_id' => $purchase->business_id,
                     'branch_id' => $purchase->branch_id,
                     'product_id' => $itemData['product_id'],
@@ -208,7 +213,7 @@ class PurchaseController extends Controller
                     'reference' => $purchase->purchase_number,
                 ]);
 
-                \App\Models\PurchaseItem::create([
+                PurchaseItem::create([
                     'purchase_id' => $purchase->id,
                     'product_id' => $itemData['product_id'],
                     'batch_id' => $batch->id,
@@ -237,7 +242,7 @@ class PurchaseController extends Controller
             }
 
             $totalAmount = $subtotal + $totalLandedCost;
-            
+
             $purchase->update([
                 'supplier_id' => $validated['supplier_id'] ?? null,
                 'reference' => $validated['reference'] ?? null,
@@ -251,10 +256,12 @@ class PurchaseController extends Controller
             ]);
 
             DB::commit();
+
             return redirect()->route('purchases.show', $purchase)->with('success', 'Purchase order updated successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error updating purchase: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error updating purchase: '.$e->getMessage());
         }
     }
 
@@ -266,14 +273,16 @@ class PurchaseController extends Controller
 
         try {
             DB::beginTransaction();
-            
+
             $this->purchaseService->deletePurchase($purchase);
 
             DB::commit();
+
             return redirect()->route('purchases.index')->with('success', 'Purchase deleted successfully.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Error deleting purchase: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Error deleting purchase: '.$e->getMessage());
         }
     }
 }

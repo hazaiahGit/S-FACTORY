@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AppNotification;
+use App\Models\Branch;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 use Tighten\Ziggy\Ziggy;
@@ -39,9 +41,25 @@ class HandleInertiaRequests extends Middleware
                 'business' => $user ? $user->business : null,
                 'branch' => $user ? $user->branch : null,
                 'active_branch_id' => $user ? $user->active_branch_id : null,
-                'all_branches' => ($user && ($user->hasRole('Super Admin') || $user->hasRole('Admin'))) ? \App\Models\Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [],
+                'all_branches' => ($user && $user->isTenantAdmin()) ? Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [],
                 'roles' => $user ? $user->getRoleNames() : [],
                 'permissions' => $user ? $user->getAllPermissions()->pluck('name') : [],
+                'notifications_unread_count' => fn () => $user ? AppNotification::forUser($user)->unreadFor($user)->count() : 0,
+                'recent_notifications' => fn () => $user ? AppNotification::with('branch:id,name')
+                    ->forUser($user)
+                    ->latest()
+                    ->limit(6)
+                    ->get()
+                    ->map(fn ($n) => [
+                        'id' => $n->id,
+                        'type' => $n->type,
+                        'title' => $n->title,
+                        'message' => $n->message,
+                        'action_url' => $n->action_url,
+                        'branch_name' => $n->branch?->name,
+                        'read' => $n->isReadBy($user),
+                        'time' => $n->created_at->diffForHumans(),
+                    ]) : [],
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),

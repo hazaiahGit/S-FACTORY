@@ -35,7 +35,7 @@ class DashboardController extends Controller
         }
 
         $businessId = $user->business_id;
-        $branchId = $request->get('branch_id', $user->branch_id);
+        $branchId = $request->has('branch_id') ? $request->get('branch_id') : $user->active_branch_id;
 
         // Date range from request or default to today
         $period = $request->get('period', 'today');

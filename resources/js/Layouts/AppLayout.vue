@@ -37,16 +37,19 @@ const toggleSidebar = () => {
     sidebarOpen.value = !sidebarOpen.value;
 };
 
-// Dummy notifications for UI
-const notifications = ref([
-    { id: 1, type: 'alert', title: 'Low Stock Alert', message: 'Roofing Nails 3" is running below minimum stock.', time: '10 mins ago', read: false },
-    { id: 2, type: 'success', title: 'Goal Achieved', message: 'You have reached 100% of your Monthly Sales Target!', time: '1 hour ago', read: false },
-    { id: 3, type: 'info', title: 'System Update', message: 'New reports module is now available.', time: '2 hours ago', read: true }
-]);
+const notifications = computed(() => page.props.auth.recent_notifications ?? []);
+const unreadCount = computed(() => page.props.auth.notifications_unread_count ?? 0);
 
-const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 const markAllRead = () => {
-    notifications.value.forEach(n => n.read = true);
+    router.post(route('notifications.read-all'), {}, { preserveScroll: true });
+};
+
+const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+        router.post(route('notifications.read', notification.id));
+    } else if (notification.action_url) {
+        router.visit(notification.action_url);
+    }
 };
 
 const logout = () => {
@@ -224,12 +227,12 @@ const navigation = computed(() => {
                     <div v-if="$page.props.auth.all_branches && $page.props.auth.all_branches.length > 0" class="hidden sm:flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 relative">
                         <Building2 class="w-4 h-4 text-slate-400 mr-2" />
                         <select 
-                            @change="e => { router.post(route('active-branch.update'), { branch_id: e.target.value }, { preserveScroll: true }) }"
-                            :value="$page.props.auth.active_branch_id"
-                            class="text-sm bg-transparent border-none focus:ring-0 text-slate-700 font-medium py-1 pr-8 pl-0 cursor-pointer w-40 truncate"
+                            @change="e => { router.post(route('active-branch.update'), { branch_id: e.target.value || null }, { preserveScroll: true }) }"
+                            :value="$page.props.auth.active_branch_id || ''"
+                            class="text-sm bg-transparent border-none focus:ring-0 text-slate-700 font-bold py-1 pr-8 pl-0 cursor-pointer w-44 truncate"
                         >
                             <option v-for="branch in $page.props.auth.all_branches" :key="branch.id" :value="branch.id">
-                                {{ branch.name }}
+                                📍 {{ branch.name }}
                             </option>
                         </select>
                     </div>
@@ -253,15 +256,26 @@ const navigation = computed(() => {
                         >
                             <PopoverPanel class="absolute right-0 z-50 mt-2 w-80 md:w-96 origin-top-right rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none overflow-hidden">
                                 <div class="px-4 py-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                    <h3 class="text-sm font-bold text-slate-800">Notifications</h3>
-                                    <button @click="markAllRead" v-if="unreadCount > 0" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Mark all read</button>
+                                    <div class="flex items-center gap-2">
+                                        <h3 class="text-sm font-bold text-slate-800">Notifications</h3>
+                                        <span v-if="unreadCount > 0" class="px-2 py-0.5 text-[10px] font-black rounded-full bg-amber-500 text-white">{{ unreadCount }}</span>
+                                    </div>
+                                    <button @click="markAllRead" v-if="unreadCount > 0" class="text-xs text-amber-600 hover:text-amber-800 font-bold transition-colors">Mark all read</button>
                                 </div>
                                 <div class="max-h-96 overflow-y-auto">
-                                    <div v-for="notification in notifications" :key="notification.id" :class="['p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer', !notification.read ? 'bg-indigo-50/30' : '']">
+                                    <div 
+                                        v-for="notification in notifications" 
+                                        :key="notification.id" 
+                                        @click="handleNotificationClick(notification)"
+                                        :class="['p-4 border-b border-slate-50 last:border-0 hover:bg-slate-50 transition-colors cursor-pointer', !notification.read ? 'bg-amber-50/30' : '']"
+                                    >
                                         <div class="flex items-start">
                                             <div class="flex-shrink-0 mt-0.5">
                                                 <div v-if="notification.type === 'alert'" class="h-8 w-8 rounded-full bg-rose-100 flex items-center justify-center">
                                                     <AlertTriangle class="h-4 w-4 text-rose-600" />
+                                                </div>
+                                                <div v-else-if="notification.type === 'warning'" class="h-8 w-8 rounded-full bg-amber-100 flex items-center justify-center">
+                                                    <AlertTriangle class="h-4 w-4 text-amber-600" />
                                                 </div>
                                                 <div v-else-if="notification.type === 'success'" class="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
                                                     <Target class="h-4 w-4 text-emerald-600" />
@@ -270,29 +284,37 @@ const navigation = computed(() => {
                                                     <Bell class="h-4 w-4 text-blue-600" />
                                                 </div>
                                             </div>
-                                            <div class="ml-3 flex-1">
-                                                <p :class="['text-sm font-bold', !notification.read ? 'text-slate-900' : 'text-slate-700']">
-                                                    {{ notification.title }}
-                                                </p>
-                                                <p class="text-xs text-slate-500 mt-0.5">
+                                            <div class="ml-3 flex-1 min-w-0">
+                                                <div class="flex items-center gap-1.5 flex-wrap">
+                                                    <span v-if="notification.branch_name" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                                        📍 {{ notification.branch_name }}
+                                                    </span>
+                                                    <p :class="['text-xs font-bold truncate', !notification.read ? 'text-slate-900' : 'text-slate-700']">
+                                                        {{ notification.title }}
+                                                    </p>
+                                                </div>
+                                                <p class="text-xs text-slate-500 mt-0.5 line-clamp-2">
                                                     {{ notification.message }}
                                                 </p>
                                                 <p class="text-[10px] text-slate-400 mt-1 font-medium">
                                                     {{ notification.time }}
                                                 </p>
                                             </div>
-                                            <div v-if="!notification.read" class="flex-shrink-0 ml-2">
-                                                <div class="h-2 w-2 bg-indigo-600 rounded-full"></div>
+                                            <div v-if="!notification.read" class="flex-shrink-0 ml-2 mt-1">
+                                                <div class="h-2 w-2 bg-amber-500 rounded-full"></div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div v-if="notifications.length === 0" class="p-6 text-center">
+                                    <div v-if="notifications.length === 0" class="p-8 text-center">
                                         <Bell class="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                                        <p class="text-sm text-slate-500">No new notifications</p>
+                                        <p class="text-sm font-bold text-slate-700">No notifications</p>
+                                        <p class="text-xs text-slate-400 mt-0.5">You're all caught up!</p>
                                     </div>
                                 </div>
-                                <div class="px-4 py-2 border-t border-slate-100 bg-slate-50 text-center">
-                                    <Link href="#" class="text-xs font-bold text-slate-600 hover:text-slate-900 transition-colors">View all notifications</Link>
+                                <div class="px-4 py-2.5 border-t border-slate-100 bg-slate-50 text-center">
+                                    <Link :href="route('notifications.index')" class="text-xs font-bold text-slate-600 hover:text-amber-600 transition-colors">
+                                        View all notifications &rarr;
+                                    </Link>
                                 </div>
                             </PopoverPanel>
                         </transition>

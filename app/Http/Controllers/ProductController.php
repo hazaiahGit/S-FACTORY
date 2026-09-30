@@ -28,7 +28,7 @@ class ProductController extends Controller
         $brandId = $request->input('brand_id');
         $branchId = $request->input('branch_id');
 
-        $activeBranchId = $branchId ?? $request->user()->branch_id;
+        $activeBranchId = $branchId ?? $request->user()->active_branch_id;
 
         $products = Product::with([
             'category',

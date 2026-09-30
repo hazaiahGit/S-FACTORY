@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AuditLog;
+use App\Models\Customer;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\SalePayment;
-use App\Models\Customer;
-use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
 
 class SaleService
@@ -29,10 +30,10 @@ class SaleService
             // Validate stock before creating sale
             if ($data['sale_type'] === 'sale') {
                 foreach ($data['items'] as $item) {
-                    $product = \App\Models\Product::findOrFail($item['product_id']);
+                    $product = Product::findOrFail($item['product_id']);
                     if ($product->track_stock) {
                         $business = $user->business;
-                        if (!$business->negative_stock_allowed) {
+                        if (! $business->negative_stock_allowed) {
                             $available = $this->stockService->getStock($data['branch_id'], $item['product_id']);
                             if ($available < $item['quantity']) {
                                 throw new \RuntimeException(
@@ -73,7 +74,7 @@ class SaleService
             $subtotal = 0;
             $totalCogs = 0;
             foreach ($data['items'] as $itemData) {
-                $product = \App\Models\Product::findOrFail($itemData['product_id']);
+                $product = Product::findOrFail($itemData['product_id']);
                 $unitCost = (float) $product->cost_price;
                 $unitPrice = (float) $itemData['unit_price'];
                 $quantity = (float) $itemData['quantity'];
@@ -127,9 +128,9 @@ class SaleService
             }
 
             // Calculate totals
-            $discountAmount = (float)($data['discount_amount'] ?? 0);
+            $discountAmount = (float) ($data['discount_amount'] ?? 0);
             if ($discountAmount == 0 && isset($data['discount_percent']) && $data['discount_percent'] > 0) {
-                $discountAmount = $subtotal * ((float)$data['discount_percent'] / 100);
+                $discountAmount = $subtotal * ((float) $data['discount_percent'] / 100);
             }
             $discountPercent = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
             $totalAmount = $subtotal - $discountAmount;
@@ -139,7 +140,9 @@ class SaleService
             $paidAmount = 0;
             foreach ($data['payments'] ?? [] as $paymentData) {
                 $amount = (float) $paymentData['amount'];
-                if ($amount <= 0) continue;
+                if ($amount <= 0) {
+                    continue;
+                }
 
                 SalePayment::create([
                     'sale_id' => $sale->id,
@@ -176,6 +179,10 @@ class SaleService
             }
 
             AuditLog::record('create', 'sales', "Created sale {$sale->sale_number}", [], $sale->toArray(), $businessId, $sale);
+
+            if ($sale->balance_amount > 0 || $sale->status === 'credit') {
+                app(NotificationService::class)->notifyCreditSale($sale);
+            }
 
             return $sale->load(['items.product', 'payments', 'customer']);
         });
@@ -220,6 +227,8 @@ class SaleService
 
             AuditLog::record('payment', 'sales', "Recorded payment {$payment->payment_number} for sale {$sale->sale_number}", [], ['amount' => $amount], $sale->business_id, $sale);
 
+            app(NotificationService::class)->notifyPaymentReceived($payment);
+
             return $payment;
         });
     }
@@ -227,23 +236,28 @@ class SaleService
     private function determinePaymentStatus(array $data): string
     {
         $totalPayment = collect($data['payments'] ?? [])->sum('amount');
+
         // We'll calculate proper status after creating totals
         return 'paid'; // Will be recalculated after
     }
 
     private function calculatePaymentStatus(float $total, float $paid): string
     {
-        if ($paid <= 0) return 'unpaid';
-        if ($paid >= $total) return 'paid';
+        if ($paid <= 0) {
+            return 'unpaid';
+        }
+        if ($paid >= $total) {
+            return 'paid';
+        }
+
         return 'partial';
     }
 
-    
-    public function updateSale(\App\Models\Sale $sale, array $data): \App\Models\Sale
+    public function updateSale(Sale $sale, array $data): Sale
     {
-        return \Illuminate\Support\Facades\DB::transaction(function () use ($sale, $data) {
+        return DB::transaction(function () use ($sale, $data) {
             $user = auth()->user();
-            
+
             // 1. Reverse stock for existing items
             $wasReserved = in_array($sale->status, ['draft', 'on_hold']);
             foreach ($sale->items as $item) {
@@ -257,7 +271,7 @@ class SaleService
                             $item->quantity,
                             $item->unit_cost,
                             'sale_edited',
-                            \App\Models\Sale::class,
+                            Sale::class,
                             $sale->id,
                             $sale->sale_number,
                             'Reversing stock before update'
@@ -270,10 +284,10 @@ class SaleService
             // 2. Validate stock for new items
             if ($data['sale_type'] === 'sale') {
                 foreach ($data['items'] as $item) {
-                    $product = \App\Models\Product::findOrFail($item['product_id']);
+                    $product = Product::findOrFail($item['product_id']);
                     if ($product->track_stock) {
                         $business = $user->business;
-                        if (!$business->negative_stock_allowed) {
+                        if (! $business->negative_stock_allowed) {
                             $available = $this->stockService->getStock($data['branch_id'], $item['product_id']);
                             if ($available < $item['quantity']) {
                                 throw new \RuntimeException(
@@ -288,9 +302,9 @@ class SaleService
             // 3. Re-create items and calculate totals
             $subtotal = 0;
             $totalCogs = 0;
-            
+
             foreach ($data['items'] as $itemData) {
-                $product = \App\Models\Product::findOrFail($itemData['product_id']);
+                $product = Product::findOrFail($itemData['product_id']);
                 $unitCost = (float) $product->cost_price;
                 $unitPrice = (float) $itemData['unit_price'];
                 $quantity = (float) $itemData['quantity'];
@@ -300,7 +314,7 @@ class SaleService
                 $lineCogs = $unitCost * $quantity;
                 $lineProfit = $lineTotal - $lineCogs;
 
-                \App\Models\SaleItem::create([
+                SaleItem::create([
                     'sale_id' => $sale->id,
                     'product_id' => $product->id,
                     'quantity' => $quantity,
@@ -332,7 +346,7 @@ class SaleService
                             $product->id,
                             $quantity,
                             'sale',
-                            \App\Models\Sale::class,
+                            Sale::class,
                             $sale->id,
                             $sale->sale_number,
                             null,
@@ -344,14 +358,14 @@ class SaleService
             }
 
             // 4. Update the sale record
-            $discountAmount = (float)($data['discount_amount'] ?? 0);
+            $discountAmount = (float) ($data['discount_amount'] ?? 0);
             if ($discountAmount == 0 && isset($data['discount_percent']) && $data['discount_percent'] > 0) {
-                $discountAmount = $subtotal * ((float)$data['discount_percent'] / 100);
+                $discountAmount = $subtotal * ((float) $data['discount_percent'] / 100);
             }
             $discountPercent = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
             $taxAmount = 0; // Simple implementation
             $totalAmount = $subtotal - $discountAmount + $taxAmount;
-            
+
             // Update payments if provided
             $paidAmount = (float) $sale->paid_amount;
             if (isset($data['payments'])) {
@@ -361,9 +375,11 @@ class SaleService
                 $businessId = $user->business_id;
                 foreach ($data['payments'] as $paymentData) {
                     $amount = (float) $paymentData['amount'];
-                    if ($amount <= 0) continue;
-                    
-                    \App\Models\SalePayment::create([
+                    if ($amount <= 0) {
+                        continue;
+                    }
+
+                    SalePayment::create([
                         'sale_id' => $sale->id,
                         'business_id' => $businessId,
                         'customer_id' => $data['customer_id'] ?? null,
@@ -378,7 +394,7 @@ class SaleService
                 }
             }
             $balanceAmount = $totalAmount - $paidAmount;
-            
+
             $sale->update([
                 'branch_id' => $data['branch_id'],
                 'customer_id' => $data['customer_id'] ?? null,
@@ -403,14 +419,16 @@ class SaleService
         });
     }
 
-        /**
+    /**
      * Update sale status and handle stock transitions.
      */
-    public function updateSaleStatus(\App\Models\Sale $sale, string $newStatus): void
+    public function updateSaleStatus(Sale $sale, string $newStatus): void
     {
-        \Illuminate\Support\Facades\DB::transaction(function () use ($sale, $newStatus) {
+        DB::transaction(function () use ($sale, $newStatus) {
             $oldStatus = $sale->status;
-            if ($oldStatus === $newStatus) return;
+            if ($oldStatus === $newStatus) {
+                return;
+            }
 
             $reservedStatuses = ['draft', 'on_hold'];
             $wasReserved = in_array($oldStatus, $reservedStatuses);
@@ -420,11 +438,11 @@ class SaleService
 
             foreach ($sale->items as $item) {
                 if ($sale->sale_type === 'sale' && $item->product && $item->product->track_stock) {
-                    
-                    if ($wasReserved && !$isReserved) {
+
+                    if ($wasReserved && ! $isReserved) {
                         // Transitioning out of reserved (e.g. on_hold -> confirmed OR on_hold -> cancelled)
                         $this->stockService->releaseReservation($sale->branch_id, $item->product_id, $item->quantity);
-                        
+
                         if ($newStatus !== 'cancelled') {
                             // If it's becoming a finalized sale, we must now permanently deduct it
                             $this->stockService->decrease(
@@ -432,13 +450,13 @@ class SaleService
                                 $item->product_id,
                                 $item->quantity,
                                 'sale',
-                                \App\Models\Sale::class,
+                                Sale::class,
                                 $sale->id,
                                 $sale->sale_number,
-                                'Product sold (status changed from reserved to ' . $newStatus . ')'
+                                'Product sold (status changed from reserved to '.$newStatus.')'
                             );
                         }
-                    } elseif (!$wasReserved && $isReserved) {
+                    } elseif (! $wasReserved && $isReserved) {
                         // Transitioning into reserved (e.g. confirmed -> on_hold)
                         if ($oldStatus !== 'cancelled') {
                             // It was previously deducted, so we must restore physical stock first
@@ -448,7 +466,7 @@ class SaleService
                                 $item->quantity,
                                 $item->unit_cost,
                                 'sale_status_changed',
-                                \App\Models\Sale::class,
+                                Sale::class,
                                 $sale->id,
                                 $sale->sale_number,
                                 'Restored stock (status changed to reserved)'
@@ -456,7 +474,7 @@ class SaleService
                         }
                         // Now reserve it
                         $this->stockService->reserve($sale->branch_id, $item->product_id, $item->quantity);
-                    } elseif (!$wasReserved && !$isReserved) {
+                    } elseif (! $wasReserved && ! $isReserved) {
                         // e.g. confirmed -> cancelled
                         if ($newStatus === 'cancelled' && $oldStatus !== 'cancelled') {
                             $this->stockService->increase(
@@ -465,7 +483,7 @@ class SaleService
                                 $item->quantity,
                                 $item->unit_cost,
                                 'sale_cancelled',
-                                \App\Models\Sale::class,
+                                Sale::class,
                                 $sale->id,
                                 $sale->sale_number,
                                 'Sale cancelled'
@@ -476,7 +494,7 @@ class SaleService
                                 $item->product_id,
                                 $item->quantity,
                                 'sale',
-                                \App\Models\Sale::class,
+                                Sale::class,
                                 $sale->id,
                                 $sale->sale_number,
                                 'Sale un-cancelled'
@@ -490,9 +508,10 @@ class SaleService
             $sale->update(['status' => $newStatus]);
         });
     }
-    public function deleteSale(\App\Models\Sale $sale): void
+
+    public function deleteSale(Sale $sale): void
     {
-        \Illuminate\Support\Facades\DB::transaction(function () use ($sale) {
+        DB::transaction(function () use ($sale) {
             $sale->load(['items', 'payments']);
 
             // Reverse stock for all items
@@ -509,7 +528,7 @@ class SaleService
                             $item->quantity,
                             $item->unit_cost, // Restore at original cost
                             'sale_deleted',
-                            \App\Models\Sale::class,
+                            Sale::class,
                             $sale->id,
                             $sale->sale_number,
                             'Reversing sale deletion'

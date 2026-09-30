@@ -5,11 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\NumberGeneratorService;
+use Exception;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Illuminate\Http\RedirectResponse;
-use Exception;
 
 class ExpenseController extends Controller
 {
@@ -23,11 +23,13 @@ class ExpenseController extends Controller
 
         $expenses = Expense::with(['category', 'user', 'branch'])
             ->where('business_id', $user->business_id)
-            ->where('branch_id', $user->active_branch_id)
+            ->when($user->active_branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->when($request->search, function ($query, $search) {
                 $query->where('expense_number', 'like', "%{$search}%")
-                      ->orWhere('title', 'like', "%{$search}%")
-                      ->orWhere('reference', 'like', "%{$search}%");
+                    ->orWhere('title', 'like', "%{$search}%")
+                    ->orWhere('reference', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(15)
@@ -44,9 +46,9 @@ class ExpenseController extends Controller
         $categories = ExpenseCategory::where('business_id', $request->user()->business_id)
             ->where('is_active', true)
             ->get(['id', 'name', 'color']);
-            
+
         return Inertia::render('Expenses/Create', [
-            'categories' => $categories
+            'categories' => $categories,
         ]);
     }
 
@@ -75,7 +77,7 @@ class ExpenseController extends Controller
 
             return redirect()->route('expenses.index')->with('success', 'Expense recorded successfully.');
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Failed to create expense: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to create expense: '.$e->getMessage());
         }
     }
 
@@ -89,9 +91,10 @@ class ExpenseController extends Controller
 
         try {
             $expense->delete();
+
             return redirect()->route('expenses.index')->with('success', 'Expense deleted successfully.');
         } catch (Exception $e) {
-            return redirect()->back()->with('error', 'Failed to delete expense: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete expense: '.$e->getMessage());
         }
     }
 }

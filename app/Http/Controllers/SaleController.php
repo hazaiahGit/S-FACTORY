@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Models\Sale;
@@ -26,7 +27,9 @@ class SaleController extends Controller
 
         $sales = Sale::with(['customer', 'items'])
             ->where('business_id', $businessId)
-            ->where('branch_id', request()->user()->active_branch_id)
+            ->when(request()->user()->active_branch_id, function ($q, $branchId) {
+                $q->where('branch_id', $branchId);
+            })
             ->when($request->date, function ($query, $date) {
                 $query->whereDate('created_at', $date);
             })
@@ -50,7 +53,7 @@ class SaleController extends Controller
     public function create()
     {
         $businessId = request()->user()->business_id;
-        $branchId = request()->user()->active_branch_id;
+        $branchId = request()->user()->active_branch_id ?: (request()->user()->branch_id ?: Branch::where('business_id', $businessId)->value('id'));
 
         // Fetch products with their active stock for the current branch
         $products = Product::with(['stock' => function ($q) use ($branchId) {

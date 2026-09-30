@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, User, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit } from '@lucide/vue';
+import { ArrowLeft, User, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit, ChevronRight, ExternalLink, CreditCard } from '@lucide/vue';
 
 const props = defineProps({
     customer: Object,
@@ -17,6 +17,19 @@ const formatCurrency = (value) => {
 const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const getSaleStatusBadge = (sale) => {
+    if (sale.payment_status === 'paid') {
+        return { label: 'Paid', color: 'bg-emerald-100 text-emerald-800' };
+    }
+    if (sale.status === 'credit') {
+        return { label: 'Credit', color: 'bg-purple-100 text-purple-800' };
+    }
+    if (sale.payment_status === 'partial') {
+        return { label: 'Partial', color: 'bg-amber-100 text-amber-800' };
+    }
+    return { label: 'Unpaid', color: 'bg-rose-100 text-rose-800' };
 };
 </script>
 
@@ -122,29 +135,49 @@ const formatDate = (dateString) => {
                                 <Receipt class="w-4 h-4 mr-2 text-indigo-500" />
                                 Recent Sales
                             </h3>
+                            <Link :href="route('sales.index')" class="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
+                                View All
+                                <ChevronRight class="w-3.5 h-3.5" />
+                            </Link>
                         </div>
-                        <div class="block">
-                            <div v-for="sale in sales.data" :key="sale.id" class="p-4 sm:p-5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-                                    <div>
-                                        <div class="text-sm font-bold text-indigo-600">{{ sale.sale_number }}</div>
-                                        <div class="text-xs text-slate-500 mt-1">{{ formatDate(sale.transaction_date) }}</div>
+                        <div class="divide-y divide-slate-100">
+                            <Link 
+                                v-for="sale in sales.data" 
+                                :key="sale.id" 
+                                :href="route('sales.show', sale.id)"
+                                class="p-4 sm:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 hover:bg-amber-50/50 transition-all group block"
+                            >
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white flex items-center justify-center transition-colors shrink-0">
+                                        <Receipt class="w-5 h-5" />
                                     </div>
-                                    <div class="flex gap-4 sm:gap-6 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100">
-                                        <div class="text-right">
-                                            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total</span>
-                                            <span class="text-sm font-black text-slate-900">{{ formatCurrency(sale.total_amount) }}</span>
-                                        </div>
-                                        <div class="text-right">
-                                            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Balance</span>
-                                            <span :class="['text-sm font-bold', sale.balance_amount > 0 ? 'text-rose-600' : 'text-emerald-600']">
-                                                {{ formatCurrency(sale.balance_amount) }}
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors">
+                                                {{ sale.sale_number }}
+                                            </span>
+                                            <span :class="['px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider', getSaleStatusBadge(sale).color]">
+                                                {{ getSaleStatusBadge(sale).label }}
                                             </span>
                                         </div>
+                                        <div class="text-xs text-slate-500 mt-0.5">{{ formatDate(sale.transaction_date) }}</div>
                                     </div>
                                 </div>
-                            </div>
-                            <div v-if="sales.data.length === 0" class="p-6 text-center text-sm text-slate-500">
+                                <div class="flex items-center gap-4 sm:gap-6 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100 justify-between sm:justify-end">
+                                    <div class="text-left sm:text-right">
+                                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Total</span>
+                                        <span class="text-sm font-black text-slate-900">{{ formatCurrency(sale.total_amount) }}</span>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Balance</span>
+                                        <span :class="['text-sm font-black', sale.balance_amount > 0 ? 'text-rose-600' : 'text-emerald-600']">
+                                            {{ formatCurrency(sale.balance_amount) }}
+                                        </span>
+                                    </div>
+                                    <ChevronRight class="w-4 h-4 text-slate-300 group-hover:text-amber-600 group-hover:translate-x-1 transition-all shrink-0 hidden sm:block" />
+                                </div>
+                            </Link>
+                            <div v-if="sales.data.length === 0" class="p-8 text-center text-sm text-slate-500">
                                 No sales recorded for this customer yet.
                             </div>
                         </div>
@@ -158,20 +191,44 @@ const formatDate = (dateString) => {
                                 Recent Payments Received
                             </h3>
                         </div>
-                        <div class="block">
-                            <div v-for="payment in payments.data" :key="payment.id" class="p-4 sm:p-5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                                    <div>
-                                        <div class="text-sm font-bold text-slate-900">{{ payment.payment_number }}</div>
-                                        <div class="text-xs text-slate-500 mt-1">{{ formatDate(payment.payment_date) }} • {{ payment.payment_method }}</div>
+                        <div class="divide-y divide-slate-100">
+                            <component
+                                :is="payment.sale_id ? Link : 'div'"
+                                v-for="payment in payments.data" 
+                                :key="payment.id"
+                                :href="payment.sale_id ? route('sales.show', payment.sale_id) : undefined"
+                                :class="[
+                                    'p-4 sm:p-5 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 transition-all block',
+                                    payment.sale_id ? 'hover:bg-emerald-50/40 group cursor-pointer' : ''
+                                ]"
+                            >
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors shrink-0">
+                                        <Wallet class="w-5 h-5" />
                                     </div>
-                                    <div class="text-right bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100">
-                                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Amount</span>
-                                        <span class="text-lg font-black text-emerald-600">{{ formatCurrency(payment.amount) }}</span>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-black text-slate-900 group-hover:text-emerald-700 transition-colors">
+                                                {{ payment.payment_number }}
+                                            </span>
+                                            <span v-if="payment.sale?.sale_number" class="px-2 py-0.5 text-[10px] font-bold rounded-md bg-slate-100 text-slate-600 font-mono">
+                                                {{ payment.sale.sale_number }}
+                                            </span>
+                                        </div>
+                                        <div class="text-xs text-slate-500 mt-0.5">
+                                            {{ formatDate(payment.payment_date) }} • <span class="capitalize font-medium">{{ payment.payment_method }}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div v-if="payments.data.length === 0" class="p-6 text-center text-sm text-slate-500">
+                                <div class="flex items-center gap-4 sm:gap-6 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100 justify-between sm:justify-end">
+                                    <div class="text-right">
+                                        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Amount Paid</span>
+                                        <span class="text-base font-black text-emerald-600">{{ formatCurrency(payment.amount) }}</span>
+                                    </div>
+                                    <ChevronRight v-if="payment.sale_id" class="w-4 h-4 text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all shrink-0 hidden sm:block" />
+                                </div>
+                            </component>
+                            <div v-if="payments.data.length === 0" class="p-8 text-center text-sm text-slate-500">
                                 No payments recorded yet.
                             </div>
                         </div>

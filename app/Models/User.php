@@ -108,7 +108,7 @@ class User extends Authenticatable
     public function scopeForBusiness($query, int $businessId)
     {
         return $query->where('business_id',
-        'is_system_admin', $businessId);
+            'is_system_admin', $businessId);
     }
 
     // ─── Financial Visibility (driven by Spatie permissions) ─────────────
@@ -176,11 +176,30 @@ class User extends Authenticatable
 
     // ─── Helpers ──────────────────────────────────────────────────────
 
-        public function getActiveBranchIdAttribute()
+    public function isTenantAdmin(): bool
     {
-        if ($this->hasRole('Super Admin') || $this->hasRole('Admin')) {
-            return session('active_branch_id', $this->branch_id);
+        if (! $this->business_id) {
+            return false;
         }
+
+        return $this->hasRole('Super Admin')
+            || $this->hasRole('Admin')
+            || $this->can('manage settings')
+            || $this->can('manage users');
+    }
+
+    public function getActiveBranchIdAttribute()
+    {
+        if ($this->isTenantAdmin()) {
+            if (session()->has('active_branch_id')) {
+                $val = session('active_branch_id');
+
+                return ($val === 'all' || $val === null || $val === '') ? null : (int) $val;
+            }
+
+            return $this->branch_id;
+        }
+
         return $this->branch_id;
     }
 
