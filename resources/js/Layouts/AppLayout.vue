@@ -1,30 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Link, usePage, router } from '@inertiajs/vue3';
-import { UserCog, LayoutDashboard,
-    Package,
-    ShoppingCart,
-    Users,
-    Settings,
-    Menu,
-    Bell,
-    LogOut,
-    Factory,
-    ListTree,
-    ArrowRightLeft,
-    Wallet,
-    Receipt,
-    ClipboardList,
-    ChevronDown,
-    Target,
-    AlertTriangle,
-    Building2,
-    PackageOpen,
-    ServerCrash,
-    FolderTree,
-    Scale,
-    Boxes,
-    Tags
+import {
+    UserCog, LayoutDashboard, Package, ShoppingCart, Users, Settings,
+    Menu, Bell, LogOut, Factory, ListTree, ArrowRightLeft, Wallet,
+    Receipt, ClipboardList, ChevronDown, ChevronRight, Target, AlertTriangle,
+    Building2, PackageOpen, ServerCrash, FolderTree, Scale, Boxes, Tags
 } from '@lucide/vue';
 import { Menu as HeadlessMenu, MenuButton, MenuItems, MenuItem, Popover, PopoverButton, PopoverPanel } from '@headlessui/vue';
 
@@ -67,32 +48,128 @@ const hasPermission = (permission) => {
     return userPermissions.value.includes(permission);
 };
 
-const allNavItems = [
-    { name: 'Dashboard', route: 'dashboard', icon: LayoutDashboard, permission: null },
-    { name: 'POS / Sales', route: 'sales.index', icon: ShoppingCart, permission: 'view sales' },
-    { name: 'Purchases', route: 'purchases.index', icon: Receipt, permission: 'view purchases' },
-    { name: 'Products', route: 'products.index', icon: Package, permission: 'view products' },
-    { name: 'Categories', route: 'categories.index', icon: FolderTree, permission: 'view products' },
-    { name: 'Units of Measure', route: 'units.index', icon: Scale, permission: 'view products' },
-    { name: 'Product Types', route: 'product-types.index', icon: Boxes, permission: 'view products' },
-    { name: 'Inventory', route: 'inventory.index', icon: Package, permission: 'view inventory' },
-    { name: 'Recipes / BOM', route: 'bom.index', icon: ListTree, permission: 'view recipes' },
-    { name: 'Transfers', route: 'stock-transfers.index', icon: ArrowRightLeft, permission: 'view inventory' },
-    { name: 'Customers', route: 'customers.index', icon: Users, permission: 'view sales' },
-    { name: 'Suppliers', route: 'suppliers.index', icon: Users, permission: 'view purchases' },
-    { name: 'Expenses', route: 'expenses.index', icon: Wallet, permission: 'view profit' },
-    { name: 'Expense Categories', route: 'expense-categories.index', icon: Tags, permission: 'view profit' },
-    { name: 'Targets & Goals', route: 'targets.index', icon: Target, permission: 'view report' },
-    { name: 'Reports', route: 'reports.index', icon: ClipboardList, permission: 'view report' },
-        { name: 'User Management', route: 'users.index', icon: UserCog, permission: 'manage users' },
-    { name: 'Branches', route: 'branches.index', icon: Building2, permission: 'manage users' }, // Reusing manage users permission for now, or just allow super admin
+// Navigation groups definition
+const navGroups = [
+    {
+        type: 'single',
+        name: 'Dashboard',
+        route: 'dashboard',
+        icon: LayoutDashboard,
+        permission: null,
+    },
+    {
+        type: 'single',
+        name: 'POS / Sales',
+        route: 'sales.index',
+        icon: ShoppingCart,
+        permission: 'view sales',
+    },
+    {
+        type: 'single',
+        name: 'Purchases',
+        route: 'purchases.index',
+        icon: Receipt,
+        permission: 'view purchases',
+    },
+    {
+        type: 'group',
+        name: 'Inventory',
+        icon: Package,
+        permission: 'view inventory',
+        children: [
+            { name: 'Stock', route: 'inventory.index', icon: Package, permission: 'view inventory' },
+            { name: 'Transfers', route: 'stock-transfers.index', icon: ArrowRightLeft, permission: 'view inventory' },
+            { name: 'Recipes / BOM', route: 'bom.index', icon: ListTree, permission: 'view recipes' },
+        ],
+    },
+    {
+        type: 'group',
+        name: 'Products',
+        icon: Boxes,
+        permission: 'view products',
+        children: [
+            { name: 'Products', route: 'products.index', icon: Package, permission: 'view products' },
+            { name: 'Categories', route: 'categories.index', icon: FolderTree, permission: 'view products' },
+            { name: 'Units of Measure', route: 'units.index', icon: Scale, permission: 'view products' },
+            { name: 'Product Types', route: 'product-types.index', icon: Boxes, permission: 'view products' },
+        ],
+    },
+    {
+        type: 'group',
+        name: 'Customers & Suppliers',
+        icon: Users,
+        permission: 'view sales',
+        children: [
+            { name: 'Customers', route: 'customers.index', icon: Users, permission: 'view sales' },
+            { name: 'Suppliers', route: 'suppliers.index', icon: Users, permission: 'view purchases' },
+        ],
+    },
+    {
+        type: 'group',
+        name: 'Expenses',
+        icon: Wallet,
+        permission: 'view profit',
+        children: [
+            { name: 'Expenses', route: 'expenses.index', icon: Wallet, permission: 'view profit' },
+            { name: 'Expense Categories', route: 'expense-categories.index', icon: Tags, permission: 'view profit' },
+        ],
+    },
+    {
+        type: 'group',
+        name: 'Reports & Goals',
+        icon: ClipboardList,
+        permission: 'view report',
+        children: [
+            { name: 'Reports', route: 'reports.index', icon: ClipboardList, permission: 'view report' },
+            { name: 'Targets & Goals', route: 'targets.index', icon: Target, permission: 'view report' },
+        ],
+    },
+    {
+        type: 'group',
+        name: 'Administration',
+        icon: UserCog,
+        permission: 'manage users',
+        children: [
+            { name: 'User Management', route: 'users.index', icon: UserCog, permission: 'manage users' },
+            { name: 'Branches', route: 'branches.index', icon: Building2, permission: 'manage users' },
+        ],
+    },
 ];
 
-const navigation = computed(() => {
-    if (user?.is_system_admin && !user?.business_id) {
-        return [];
-    }
-    return allNavItems.filter(item => hasPermission(item.permission));
+// Track which groups are open
+const openGroups = ref({});
+
+const isGroupActive = (group) => {
+    return group.children?.some(child => route().current(child.route) || route().current(child.route.split('.')[0] + '.*'));
+};
+
+const toggleGroup = (groupName) => {
+    openGroups.value[groupName] = !openGroups.value[groupName];
+};
+
+const isGroupOpen = (group) => {
+    // Auto-open if a child route is active
+    if (isGroupActive(group)) return true;
+    return openGroups.value[group.name] ?? false;
+};
+
+const visibleNavGroups = computed(() => {
+    if (user?.is_system_admin && !user?.business_id) return [];
+    return navGroups
+        .map(group => {
+            if (group.type === 'single') {
+                return hasPermission(group.permission) ? group : null;
+            }
+            // Group: filter children
+            const visibleChildren = group.children.filter(c => hasPermission(c.permission));
+            if (visibleChildren.length === 0) return null;
+            if (visibleChildren.length === 1) {
+                // Flatten single-child groups into a single nav item
+                return { type: 'single', ...visibleChildren[0] };
+            }
+            return { ...group, children: visibleChildren };
+        })
+        .filter(Boolean);
 });
 </script>
 
@@ -126,31 +203,96 @@ const navigation = computed(() => {
             </div>
 
             <!-- Navigation -->
-            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1 sidebar-scroll">
-                <Link
-                    v-for="item in navigation"
-                    :key="item.name"
-                    :href="route(item.route)"
-                    @click="window?.innerWidth < 1024 ? sidebarOpen = false : null"
-                    :class="[
-                        route().current(item.route) || route().current(item.route.split('.')[0] + '.*')
-                            ? 'bg-amber-500/10 text-amber-500'
-                            : 'hover:bg-slate-800 hover:text-white',
-                        'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors'
-                    ]"
-                    :title="!sidebarOpen ? item.name : ''"
-                >
-                    <component
-                        :is="item.icon"
+            <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-0.5 sidebar-scroll">
+                <template v-for="item in visibleNavGroups" :key="item.name">
+                    <!-- Single nav item -->
+                    <Link
+                        v-if="item.type === 'single'"
+                        :href="route(item.route)"
+                        @click="typeof window !== 'undefined' && window.innerWidth < 1024 ? sidebarOpen = false : null"
                         :class="[
-                            route().current(item.route) ? 'text-amber-500' : 'text-slate-400 group-hover:text-white',
-                            'flex-shrink-0 h-5 w-5'
+                            route().current(item.route) || route().current(item.route.split('.')[0] + '.*')
+                                ? 'bg-amber-500/10 text-amber-400'
+                                : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+                            'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors'
                         ]"
-                        aria-hidden="true"
-                    />
-                    <span :class="['ml-3', !sidebarOpen ? 'lg:hidden' : '']">{{ item.name }}</span>
-                </Link>
+                        :title="!sidebarOpen ? item.name : ''"
+                    >
+                        <component
+                            :is="item.icon"
+                            :class="[
+                                route().current(item.route) || route().current(item.route.split('.')[0] + '.*') ? 'text-amber-400' : 'text-slate-400 group-hover:text-white',
+                                'flex-shrink-0 h-5 w-5'
+                            ]"
+                            aria-hidden="true"
+                        />
+                        <span :class="['ml-3 truncate', !sidebarOpen ? 'lg:hidden' : '']">{{ item.name }}</span>
+                    </Link>
+
+                    <!-- Group with dropdown -->
+                    <div v-else-if="item.type === 'group'">
+                        <!-- Group header button -->
+                        <button
+                            @click="toggleGroup(item.name)"
+                            :title="!sidebarOpen ? item.name : ''"
+                            :class="[
+                                isGroupActive(item) ? 'text-amber-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white',
+                                'w-full group flex items-center justify-between px-3 py-2.5 text-sm font-medium rounded-lg transition-colors'
+                            ]"
+                        >
+                            <div class="flex items-center">
+                                <component
+                                    :is="item.icon"
+                                    :class="[
+                                        isGroupActive(item) ? 'text-amber-400' : 'text-slate-400 group-hover:text-white',
+                                        'flex-shrink-0 h-5 w-5'
+                                    ]"
+                                    aria-hidden="true"
+                                />
+                                <span :class="['ml-3 truncate', !sidebarOpen ? 'lg:hidden' : '']">{{ item.name }}</span>
+                            </div>
+                            <ChevronDown
+                                v-if="sidebarOpen"
+                                :class="[
+                                    'h-4 w-4 flex-shrink-0 transition-transform duration-200',
+                                    isGroupOpen(item) ? 'rotate-180 text-amber-400' : 'text-slate-500'
+                                ]"
+                            />
+                        </button>
+
+                        <!-- Children (collapsible) -->
+                        <div
+                            v-show="isGroupOpen(item)"
+                            :class="['mt-0.5 space-y-0.5 overflow-hidden transition-all', sidebarOpen ? 'pl-4' : '']"
+                        >
+                            <Link
+                                v-for="child in item.children"
+                                :key="child.name"
+                                :href="route(child.route)"
+                                @click="typeof window !== 'undefined' && window.innerWidth < 1024 ? sidebarOpen = false : null"
+                                :class="[
+                                    route().current(child.route) || route().current(child.route.split('.')[0] + '.*')
+                                        ? 'bg-amber-500/10 text-amber-400 border-l-2 border-amber-400'
+                                        : 'text-slate-400 hover:bg-slate-800/70 hover:text-white border-l-2 border-transparent',
+                                    'group flex items-center px-3 py-2 text-sm rounded-lg transition-colors'
+                                ]"
+                                :title="!sidebarOpen ? child.name : ''"
+                            >
+                                <component
+                                    :is="child.icon"
+                                    :class="[
+                                        route().current(child.route) || route().current(child.route.split('.')[0] + '.*') ? 'text-amber-400' : 'text-slate-500 group-hover:text-slate-300',
+                                        'flex-shrink-0 h-4 w-4'
+                                    ]"
+                                    aria-hidden="true"
+                                />
+                                <span :class="['ml-2.5 truncate', !sidebarOpen ? 'lg:hidden' : '']">{{ child.name }}</span>
+                            </Link>
+                        </div>
+                    </div>
+                </template>
             </nav>
+
 
                         <!-- System Management (System Admins Only) -->
             <div v-if="$page.props.auth.user && $page.props.auth.user.is_system_admin" class="px-3 mt-4 mb-2 space-y-1">

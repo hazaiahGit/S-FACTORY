@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Link } from '@inertiajs/vue3';
-import { Target, Plus, TrendingUp, AlertTriangle, CheckCircle2, Factory, ShoppingCart, Users, Wallet, ChevronRight } from '@lucide/vue';
+import { Link, router } from '@inertiajs/vue3';
+import { Target, Plus, TrendingUp, AlertTriangle, CheckCircle2, Factory, ShoppingCart, Users, Wallet, ChevronRight, Edit2, Trash2 } from '@lucide/vue';
 import { computed } from 'vue';
 
 const props = defineProps({
