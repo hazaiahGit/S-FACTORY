@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Business;
 use App\Models\Category;
+use App\Models\ExpenseCategory;
 use App\Models\ProductType;
 use App\Models\Unit;
 use Illuminate\Support\Str;
@@ -188,6 +189,26 @@ class TenantCatalogSeederService
                     'color' => $category['color'],
                     'description' => $category['description'],
                     'is_active' => $category['is_active'],
+                ]
+            );
+        }
+
+        // 4. Seed Default Expense Categories
+        $defaultExpenseCategories = [
+            ['name' => 'Electricity & Water', 'color' => '#f59e0b'],
+            ['name' => 'Rent & Rates', 'color' => '#8b5cf6'],
+            ['name' => 'Salaries & Wages', 'color' => '#10b981'],
+            ['name' => 'Logistics & Transport', 'color' => '#3b82f6'],
+            ['name' => 'Repairs & Maintenance', 'color' => '#f43f5e'],
+            ['name' => 'Office & Supplies', 'color' => '#64748b'],
+        ];
+
+        foreach ($defaultExpenseCategories as $expenseCat) {
+            ExpenseCategory::firstOrCreate(
+                ['business_id' => $business->id, 'name' => $expenseCat['name']],
+                [
+                    'color' => $expenseCat['color'],
+                    'is_active' => true,
                 ]
             );
         }

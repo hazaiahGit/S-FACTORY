@@ -2,7 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
-import { ReceiptText, Plus, Search, MapPin, Calendar, CreditCard, Trash2 } from '@lucide/vue';
+import { ReceiptText, Plus, Search, MapPin, Calendar, CreditCard, Trash2, Tags } from '@lucide/vue';
 
 const props = defineProps({
     expenses: Object,
@@ -63,10 +63,17 @@ const deleteExpense = (id) => {
                     <input v-model="search" type="text" class="block w-full pl-10 pr-3 py-2 border-slate-200 rounded-lg shadow-sm focus:ring-rose-500 focus:border-rose-500 sm:text-sm" placeholder="Search expenses..." />
                 </div>
                 
-                <Link :href="route('expenses.create')" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 focus:outline-none transition-colors w-full sm:w-auto">
-                    <Plus class="w-4 h-4 mr-2" />
-                    Record Expense
-                </Link>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <Link :href="route('expense-categories.index')" class="inline-flex items-center justify-center px-3.5 py-2 border border-slate-200 rounded-lg shadow-xs text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 focus:outline-none transition-colors w-full sm:w-auto">
+                        <Tags class="w-4 h-4 mr-1.5 text-rose-500" />
+                        Categories
+                    </Link>
+
+                    <Link :href="route('expenses.create')" class="inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 focus:outline-none transition-colors w-full sm:w-auto whitespace-nowrap">
+                        <Plus class="w-4 h-4 mr-1.5" />
+                        Record Expense
+                    </Link>
+                </div>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">

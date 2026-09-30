@@ -23,7 +23,8 @@ import { UserCog, LayoutDashboard,
     ServerCrash,
     FolderTree,
     Scale,
-    Boxes
+    Boxes,
+    Tags
 } from '@lucide/vue';
 import { Menu as HeadlessMenu, MenuButton, MenuItems, MenuItem, Popover, PopoverButton, PopoverPanel } from '@headlessui/vue';
 
@@ -80,6 +81,7 @@ const allNavItems = [
     { name: 'Customers', route: 'customers.index', icon: Users, permission: 'view sales' },
     { name: 'Suppliers', route: 'suppliers.index', icon: Users, permission: 'view purchases' },
     { name: 'Expenses', route: 'expenses.index', icon: Wallet, permission: 'view profit' },
+    { name: 'Expense Categories', route: 'expense-categories.index', icon: Tags, permission: 'view profit' },
     { name: 'Targets & Goals', route: 'targets.index', icon: Target, permission: 'view report' },
     { name: 'Reports', route: 'reports.index', icon: ClipboardList, permission: 'view report' },
         { name: 'User Management', route: 'users.index', icon: UserCog, permission: 'manage users' },

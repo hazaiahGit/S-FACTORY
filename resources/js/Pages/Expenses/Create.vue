@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
-import { ArrowLeft, Save, ReceiptText, Banknote, ListPlus } from '@lucide/vue';
+import { ArrowLeft, Save, ReceiptText, Banknote, ListPlus, Plus } from '@lucide/vue';
 
 const props = defineProps({
     categories: Array,
@@ -55,11 +55,19 @@ const submit = () => {
                             </div>
                             
                             <div>
-                                <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Category</label>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">Category</label>
+                                    <Link :href="route('expense-categories.index')" class="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 transition-colors">
+                                        <Plus class="w-3.5 h-3.5" /> Manage Categories
+                                    </Link>
+                                </div>
                                 <select v-model="form.expense_category_id" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-rose-500 focus:border-rose-500 sm:text-sm font-bold text-slate-900" required>
                                     <option value="" disabled>-- Select Category --</option>
                                     <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
                                 </select>
+                                <p v-if="!categories || categories.length === 0" class="text-xs text-rose-500 mt-1 font-semibold">
+                                    No categories found. Click "Manage Categories" above to create one.
+                                </p>
                             </div>
                         </div>
 

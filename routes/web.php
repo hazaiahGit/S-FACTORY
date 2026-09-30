@@ -8,6 +8,7 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseCategoryController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\Manufacturing\BillOfMaterialController;
 use App\Http\Controllers\Manufacturing\ProductionOrderController;
@@ -110,6 +111,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Expenses ─────────────────────────────────────────────────────
 
     Route::resource('expenses', ExpenseController::class);
+    Route::resource('expense-categories', ExpenseCategoryController::class);
 
     // ─── Inventory / Stock ────────────────────────────────────────────
 
