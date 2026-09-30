@@ -222,19 +222,34 @@ const navigation = computed(() => {
                     </h1>
                 </div>
 
-                <div class="flex items-center space-x-4">
-                                        <!-- Branch Filter (Admins Only) -->
-                    <div v-if="$page.props.auth.all_branches && $page.props.auth.all_branches.length > 0" class="hidden sm:flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 relative">
-                        <Building2 class="w-4 h-4 text-slate-400 mr-2" />
+                <div class="flex items-center space-x-2 sm:space-x-4">
+                    <!-- Branch Filter (Admins Only - Mobile Friendly!) -->
+                    <div
+                        v-if="$page.props.auth.all_branches && $page.props.auth.all_branches.length > 0"
+                        class="flex items-center bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 relative shadow-sm transition-colors"
+                        title="Filter data by branch"
+                    >
+                        <Building2 class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 mr-1 sm:mr-1.5 shrink-0" />
                         <select 
                             @change="e => { router.post(route('active-branch.update'), { branch_id: e.target.value || null }, { preserveScroll: true }) }"
                             :value="$page.props.auth.active_branch_id || ''"
-                            class="text-sm bg-transparent border-none focus:ring-0 text-slate-700 font-bold py-1 pr-8 pl-0 cursor-pointer w-44 truncate"
+                            class="text-xs sm:text-sm bg-transparent border-none focus:ring-0 text-slate-800 font-bold py-0.5 sm:py-1 pr-6 sm:pr-8 pl-0 cursor-pointer w-24 sm:w-44 truncate"
                         >
+                            <option value="">🏢 All Branches</option>
                             <option v-for="branch in $page.props.auth.all_branches" :key="branch.id" :value="branch.id">
                                 📍 {{ branch.name }}
                             </option>
                         </select>
+                    </div>
+
+                    <!-- Fixed Branch Badge (Non-Admins Only - Cannot Change Branch) -->
+                    <div
+                        v-else-if="$page.props.auth.branch"
+                        class="flex items-center bg-slate-100 border border-slate-200 rounded-lg px-2 sm:px-2.5 py-1 text-xs font-bold text-slate-700 shadow-sm"
+                        title="Your assigned branch"
+                    >
+                        <Building2 class="w-3.5 h-3.5 text-slate-400 mr-1.5 shrink-0" />
+                        <span class="truncate max-w-[100px] sm:max-w-[160px]">📍 {{ $page.props.auth.branch.name }}</span>
                     </div>
 
                     <!-- Notifications -->

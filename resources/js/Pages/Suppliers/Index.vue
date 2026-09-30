@@ -2,12 +2,18 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import { ref, watch } from 'vue';
-import { Trash2, Truck, Plus, Search, Phone, Mail, Building } from '@lucide/vue';
+import { Trash2, Edit, Truck, Plus, Search, Phone, Mail, Building, Building2 } from '@lucide/vue';
 
 const props = defineProps({
     suppliers: Object,
     filters: Object,
 });
+
+const page = usePage();
+const userRoles = page.props.auth.roles ?? [];
+const isSuperAdmin = userRoles.includes('Super Admin') || userRoles.includes('Admin');
+const isManager = userRoles.includes('Manager');
+const canManage = isSuperAdmin || isManager;
 
 const search = ref(props.filters?.search || '');
 
@@ -30,7 +36,7 @@ const performSearch = debounce(() => {
 watch(search, performSearch);
 
 const deleteSupplier = (id) => {
-    if (confirm('Are you sure you want to delete this supplier?')) {
+    if (confirm('Are you sure you want to delete this supplier? This action cannot be undone.')) {
         router.delete(route('suppliers.destroy', id), {
             preserveScroll: true
         });
@@ -46,7 +52,7 @@ const formatCurrency = (value) => {
     <AppLayout>
         <template #header>
             <div class="flex items-center text-lg sm:text-xl font-bold">
-                <Truck class="w-6 h-6 mr-3 text-indigo-500" />
+                <Truck class="w-6 h-6 mr-3 text-amber-500" />
                 Suppliers & Vendors
             </div>
         </template>
@@ -67,36 +73,74 @@ const formatCurrency = (value) => {
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="block">
-                    <div v-for="supplier in suppliers.data" :key="supplier.id" class="p-4 sm:p-5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
-                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                            <div>
-                                <Link :href="route('suppliers.show', supplier.id)" class="text-base sm:text-lg font-bold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center">
-                                    <Building class="w-4 h-4 mr-2 text-slate-400" />
-                                    {{ supplier.name }}
-                                </Link>
-                                <div class="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-slate-500">
+                <div class="divide-y divide-slate-100">
+                    <div v-for="supplier in suppliers.data" :key="supplier.id" class="p-5 hover:bg-slate-50 transition-colors">
+                        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                            <!-- Left: Supplier Info -->
+                            <div class="space-y-1.5">
+                                <div class="flex items-center gap-2.5 flex-wrap">
+                                    <Link :href="route('suppliers.show', supplier.id)" class="text-base sm:text-lg font-bold text-slate-900 hover:text-amber-600 transition-colors flex items-center">
+                                        <Building class="w-4 h-4 mr-2 text-slate-400" />
+                                        {{ supplier.name }}
+                                    </Link>
+                                    <span v-if="supplier.branch" class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                        <Building2 class="w-3 h-3 mr-1 text-amber-600" />
+                                        {{ supplier.branch.name }}
+                                    </span>
+                                    <span v-if="supplier.payment_terms" class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                        {{ supplier.payment_terms }}
+                                    </span>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-3 text-xs text-slate-500">
                                     <span v-if="supplier.contact_person" class="font-bold text-slate-700">Contact: {{ supplier.contact_person }}</span>
-                                    <span v-if="supplier.phone" class="flex items-center"><Phone class="w-3 h-3 mr-1" /> {{ supplier.phone }}</span>
-                                    <span v-if="supplier.email" class="flex items-center"><Mail class="w-3 h-3 mr-1" /> {{ supplier.email }}</span>
+                                    <span v-if="supplier.phone" class="flex items-center"><Phone class="w-3.5 h-3.5 mr-1 text-slate-400" /> {{ supplier.phone }}</span>
+                                    <span v-if="supplier.email" class="flex items-center"><Mail class="w-3.5 h-3.5 mr-1 text-slate-400" /> {{ supplier.email }}</span>
                                 </div>
                             </div>
                             
-                            <div class="flex flex-wrap gap-4 sm:gap-6 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100 w-full sm:w-auto">
-                                <div class="text-left sm:text-right">
-                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Purchases</span>
-                                    <span class="text-sm font-black text-slate-900">{{ formatCurrency(supplier.purchases_sum_total_amount) }}</span>
+                            <!-- Middle: Metrics -->
+                            <div class="flex flex-wrap items-center gap-4 sm:gap-6 bg-slate-50 p-3 rounded-lg border border-slate-100 text-xs sm:text-sm">
+                                <div>
+                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Purchases</span>
+                                    <span class="font-black text-slate-900">{{ formatCurrency(supplier.purchases_sum_total_amount) }}</span>
                                 </div>
-                                <div class="text-left sm:text-right">
-                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Paid</span>
-                                    <span class="text-sm font-bold text-emerald-600">{{ formatCurrency(supplier.payments_sum_amount) }}</span>
+                                <div>
+                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Paid</span>
+                                    <span class="font-bold text-emerald-600">{{ formatCurrency(supplier.payments_sum_amount) }}</span>
                                 </div>
-                                <div class="text-left sm:text-right">
-                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">We Owe Them</span>
-                                    <span :class="['text-sm font-black', (supplier.purchases_sum_total_amount - supplier.payments_sum_amount) > 0 ? 'text-rose-600' : 'text-slate-600']">
+                                <div>
+                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">We Owe Them</span>
+                                    <span :class="['font-black', (supplier.purchases_sum_total_amount - supplier.payments_sum_amount) > 0 ? 'text-rose-600' : 'text-slate-600']">
                                         {{ formatCurrency(supplier.purchases_sum_total_amount - supplier.payments_sum_amount) }}
                                     </span>
                                 </div>
+                            </div>
+
+                            <!-- Right: CRUD Action Buttons -->
+                            <div class="flex items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                                <Link
+                                    :href="route('suppliers.show', supplier.id)"
+                                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors"
+                                >
+                                    View
+                                </Link>
+
+                                <Link
+                                    :href="route('suppliers.edit', supplier.id)"
+                                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 transition-colors"
+                                >
+                                    <Edit class="w-3.5 h-3.5 mr-1 text-slate-500" />
+                                    Edit
+                                </Link>
+
+                                <button
+                                    @click="deleteSupplier(supplier.id)"
+                                    class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold text-rose-600 bg-white border border-rose-200 hover:bg-rose-50 transition-colors"
+                                    title="Delete Supplier"
+                                >
+                                    <Trash2 class="w-3.5 h-3.5 mr-1" />
+                                    Delete
+                                </button>
                             </div>
                         </div>
                     </div>

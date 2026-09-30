@@ -13,7 +13,7 @@ class Supplier extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'business_id', 'name', 'code', 'phone', 'email', 'address',
+        'business_id', 'branch_id', 'name', 'code', 'phone', 'email', 'address',
         'contact_person', 'tax_number', 'payment_terms', 'credit_days',
         'credit_limit', 'opening_balance', 'current_balance', 'is_active', 'notes',
     ];
@@ -31,6 +31,11 @@ class Supplier extends Model
     public function business(): BelongsTo
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function products(): HasMany

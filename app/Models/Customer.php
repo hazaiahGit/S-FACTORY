@@ -11,7 +11,7 @@ class Customer extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'business_id', 'name', 'code', 'phone', 'email', 'address',
+        'business_id', 'branch_id', 'name', 'code', 'phone', 'email', 'address',
         'customer_type', 'credit_limit', 'current_balance', 'total_purchases',
         'total_paid', 'opening_balance', 'credit_allowed', 'is_active', 'notes',
     ];
@@ -29,6 +29,11 @@ class Customer extends Model
     public function business()
     {
         return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function sales()

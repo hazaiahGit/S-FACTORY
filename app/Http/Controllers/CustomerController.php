@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -10,9 +11,24 @@ class CustomerController extends Controller
 {
     public function index(Request $request)
     {
-        $businessId = $request->user()->business_id;
+        $user = $request->user();
+        $businessId = $user->business_id;
+        $activeBranchId = $user->active_branch_id;
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
 
-        $customers = Customer::where('business_id', $businessId)
+        $query = Customer::where('business_id', $businessId);
+
+        // Branch scoping: non-admin sees strictly their branch; admin sees selected branch or all
+        if (! $isAdmin) {
+            $query->where('branch_id', $user->branch_id);
+        } elseif ($activeBranchId) {
+            $query->where(function ($q) use ($activeBranchId) {
+                $q->where('branch_id', $activeBranchId)
+                    ->orWhereNull('branch_id');
+            });
+        }
+
+        $customers = $query
             ->when($request->search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -20,6 +36,7 @@ class CustomerController extends Controller
                         ->orWhere('email', 'like', "%{$search}%");
                 });
             })
+            ->with('branch:id,name')
             ->withSum('sales', 'total_amount')
             ->withSum('payments', 'amount')
             ->latest()
@@ -32,17 +49,28 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return Inertia::render('Customers/Create');
+        $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        $branches = $isAdmin ? Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [];
+
+        return Inertia::render('Customers/Create', [
+            'branches' => $branches,
+            'defaultBranchId' => $user->active_branch_id ?? $user->branch_id,
+            'isAdmin' => $isAdmin,
+        ]);
     }
 
     public function store(Request $request)
     {
-        $businessId = $request->user()->business_id;
+        $user = $request->user();
+        $businessId = $user->business_id;
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
@@ -53,6 +81,12 @@ class CustomerController extends Controller
         ]);
 
         $validated['business_id'] = $businessId;
+        // Non-admin can NEVER assign a branch other than their own assigned branch
+        if (! $isAdmin) {
+            $validated['branch_id'] = $user->branch_id;
+        } else {
+            $validated['branch_id'] = $validated['branch_id'] ?? $user->active_branch_id ?? $user->branch_id;
+        }
         $validated['is_active'] = true;
 
         try {
@@ -68,6 +102,11 @@ class CustomerController extends Controller
     {
         if ($customer->business_id !== $request->user()->business_id) {
             abort(403);
+        }
+
+        $user = $request->user();
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $customer->branch_id && $customer->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to view customer from another branch.');
         }
 
         $sales = $customer->sales()
@@ -86,7 +125,7 @@ class CustomerController extends Controller
         $balance = $totalSales - $totalPaid;
 
         return Inertia::render('Customers/Show', [
-            'customer' => $customer,
+            'customer' => $customer->load('branch:id,name'),
             'sales' => $sales,
             'payments' => $payments,
             'summary' => [
@@ -103,8 +142,18 @@ class CustomerController extends Controller
             abort(403);
         }
 
+        $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        if (! $isAdmin && $customer->branch_id && $customer->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to edit customer from another branch.');
+        }
+
+        $branches = $isAdmin ? Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [];
+
         return Inertia::render('Customers/Edit', [
             'customer' => $customer,
+            'branches' => $branches,
+            'isAdmin' => $isAdmin,
         ]);
     }
 
@@ -114,8 +163,15 @@ class CustomerController extends Controller
             abort(403);
         }
 
+        $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        if (! $isAdmin && $customer->branch_id && $customer->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to update customer from another branch.');
+        }
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
@@ -124,6 +180,10 @@ class CustomerController extends Controller
             'credit_allowed' => ['nullable', 'boolean'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        if (! $isAdmin) {
+            unset($validated['branch_id']);
+        }
 
         try {
             $customer->update($validated);
@@ -140,6 +200,11 @@ class CustomerController extends Controller
             abort(403);
         }
 
+        $user = $request->user();
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $customer->branch_id && $customer->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to delete customer from another branch.');
+        }
+
         if ($customer->sales()->exists() || $customer->payments()->exists()) {
             return redirect()->back()->with('error', 'Cannot delete customer because they have associated sales or payments.');
         }
@@ -147,7 +212,7 @@ class CustomerController extends Controller
         try {
             $customer->delete();
 
-            return redirect()->back()->with('success', 'Customer deleted successfully.');
+            return redirect()->route('customers.index')->with('success', 'Customer deleted successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Error deleting customer: '.$e->getMessage());
         }

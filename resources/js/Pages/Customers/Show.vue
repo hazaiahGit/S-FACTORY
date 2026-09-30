@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, User, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit, ChevronRight, ExternalLink, CreditCard } from '@lucide/vue';
+import { Link, router } from '@inertiajs/vue3';
+import { ArrowLeft, User, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit, ChevronRight, ExternalLink, CreditCard, Trash2 } from '@lucide/vue';
 
 const props = defineProps({
     customer: Object,
@@ -17,6 +17,12 @@ const formatCurrency = (value) => {
 const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const deleteCustomer = () => {
+    if (confirm('Are you sure you want to delete this customer? This cannot be undone.')) {
+        router.delete(route('customers.destroy', props.customer.id));
+    }
 };
 
 const getSaleStatusBadge = (sale) => {
@@ -50,10 +56,16 @@ const getSaleStatusBadge = (sale) => {
                     </span>
                 </div>
                 
-                <Link v-if="$can('edit sales')" :href="route('customers.edit', customer.id)" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors w-full sm:w-auto">
-                    <Edit class="w-4 h-4 mr-2" />
-                    Edit Details
-                </Link>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <Link :href="route('customers.edit', customer.id)" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                        <Edit class="w-4 h-4 mr-2 text-slate-500" />
+                        Edit Details
+                    </Link>
+                    <button @click="deleteCustomer" class="inline-flex items-center justify-center px-4 py-2 border border-rose-200 rounded-lg shadow-sm text-sm font-bold text-rose-600 bg-white hover:bg-rose-50 transition-colors">
+                        <Trash2 class="w-4 h-4 mr-2" />
+                        Delete Customer
+                    </button>
+                </div>
             </div>
         </template>
 

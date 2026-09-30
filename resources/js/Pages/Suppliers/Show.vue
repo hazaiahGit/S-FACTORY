@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
-import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, Building, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit, Briefcase } from '@lucide/vue';
+import { Link, router } from '@inertiajs/vue3';
+import { ArrowLeft, Building, Phone, Mail, MapPin, Receipt, Wallet, TrendingUp, Edit, Briefcase, Trash2 } from '@lucide/vue';
 
 const props = defineProps({
     supplier: Object,
@@ -17,6 +17,12 @@ const formatCurrency = (value) => {
 const formatDate = (dateString) => {
     if (!dateString) return '-';
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const deleteSupplier = () => {
+    if (confirm('Are you sure you want to delete this supplier? This cannot be undone.')) {
+        router.delete(route('suppliers.destroy', props.supplier.id));
+    }
 };
 </script>
 
@@ -37,10 +43,16 @@ const formatDate = (dateString) => {
                     </span>
                 </div>
                 
-                <Link v-if="$can('edit purchases')" :href="route('suppliers.edit', supplier.id)" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors w-full sm:w-auto">
-                    <Edit class="w-4 h-4 mr-2" />
-                    Edit Details
-                </Link>
+                <div class="flex items-center gap-2 w-full sm:w-auto">
+                    <Link :href="route('suppliers.edit', supplier.id)" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                        <Edit class="w-4 h-4 mr-2 text-slate-500" />
+                        Edit Details
+                    </Link>
+                    <button @click="deleteSupplier" class="inline-flex items-center justify-center px-4 py-2 border border-rose-200 rounded-lg shadow-sm text-sm font-bold text-rose-600 bg-white hover:bg-rose-50 transition-colors">
+                        <Trash2 class="w-4 h-4 mr-2" />
+                        Delete Supplier
+                    </button>
+                </div>
             </div>
         </template>
 
