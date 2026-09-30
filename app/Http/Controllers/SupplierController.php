@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -13,11 +14,14 @@ class SupplierController extends Controller
         $user = $request->user();
         $businessId = $user->business_id;
         $activeBranchId = $user->active_branch_id;
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
 
         $query = Supplier::where('business_id', $businessId);
 
-        // Branch scoping: non-admin sees only their branch; admin sees selected branch or all
-        if ($activeBranchId) {
+        // Branch scoping: non-admin sees strictly their branch; admin sees selected branch or all
+        if (! $isAdmin) {
+            $query->where('branch_id', $user->branch_id);
+        } elseif ($activeBranchId) {
             $query->where(function ($q) use ($activeBranchId) {
                 $q->where('branch_id', $activeBranchId)
                     ->orWhereNull('branch_id');
@@ -46,15 +50,24 @@ class SupplierController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
-        return Inertia::render('Suppliers/Create');
+        $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        $branches = $isAdmin ? Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [];
+
+        return Inertia::render('Suppliers/Create', [
+            'branches' => $branches,
+            'defaultBranchId' => $user->active_branch_id ?? $user->branch_id,
+            'isAdmin' => $isAdmin,
+        ]);
     }
 
     public function store(Request $request)
     {
         $user = $request->user();
         $businessId = $user->business_id;
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -71,8 +84,12 @@ class SupplierController extends Controller
         ]);
 
         $validated['business_id'] = $businessId;
-        // Tag with the branch:
-        $validated['branch_id'] = $validated['branch_id'] ?? $user->active_branch_id ?? $user->branch_id;
+        // Non-admin can NEVER assign a branch other than their own assigned branch
+        if (! $isAdmin) {
+            $validated['branch_id'] = $user->branch_id;
+        } else {
+            $validated['branch_id'] = $validated['branch_id'] ?? $user->active_branch_id ?? $user->branch_id;
+        }
         $validated['is_active'] = true;
 
         try {
