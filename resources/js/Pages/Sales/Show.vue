@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import { ref } from 'vue';
 import { 
     Receipt, 
     User, 
@@ -13,7 +14,11 @@ import {
     CreditCard,
     ChevronDown,
     RefreshCw,
-    Truck
+    Truck,
+    Plus,
+    Banknote,
+    Landmark,
+    X
 } from '@lucide/vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 
@@ -51,6 +56,50 @@ const currentStatusInfo = () => {
 const currentFulfillmentInfo = () => {
     return fulfillmentOptions.find(f => f.value === props.sale.fulfillment_status)
         || { label: props.sale.fulfillment_status || 'Pending', color: 'text-slate-600', bg: 'bg-slate-100' };
+};
+
+// Payment Form & Modal
+const showRecordPaymentModal = ref(false);
+
+const paymentForm = useForm({
+    amount: Number(props.sale.balance_amount) || 0,
+    payment_method: 'cash',
+    payment_date: new Date().toISOString().split('T')[0],
+    reference: '',
+    notes: '',
+});
+
+const openPaymentModal = () => {
+    paymentForm.amount = Number(props.sale.balance_amount) || 0;
+    paymentForm.payment_method = 'cash';
+    paymentForm.payment_date = new Date().toISOString().split('T')[0];
+    paymentForm.reference = '';
+    paymentForm.notes = '';
+    paymentForm.clearErrors();
+    showRecordPaymentModal.value = true;
+};
+
+const closePaymentModal = () => {
+    showRecordPaymentModal.value = false;
+    paymentForm.reset();
+    paymentForm.clearErrors();
+};
+
+const setFullBalance = () => {
+    paymentForm.amount = Number(props.sale.balance_amount) || 0;
+};
+
+const setHalfBalance = () => {
+    paymentForm.amount = Math.round((Number(props.sale.balance_amount) || 0) / 2);
+};
+
+const submitPayment = () => {
+    paymentForm.post(route('sales.payment', props.sale.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            closePaymentModal();
+        },
+    });
 };
 
 const statusForm = useForm({ status: '', fulfillment_status: '' });
@@ -207,7 +256,16 @@ const getStatusColor = (status) => {
                         </p>
                     </div>
                 </div>
-                <div class="mt-4 sm:mt-0 flex space-x-3">
+                <div class="mt-4 sm:mt-0 flex items-center space-x-3">
+                    <button
+                        v-if="sale.balance_amount > 0"
+                        type="button"
+                        @click="openPaymentModal"
+                        class="inline-flex items-center justify-center px-4 py-2 rounded-lg shadow-sm text-sm font-bold text-white bg-amber-500 hover:bg-amber-600 transition-all active:scale-95 shadow-amber-500/20"
+                    >
+                        <CreditCard class="h-4 w-4 mr-2" />
+                        Record Payment
+                    </button>
                     <a :href="route('sales.print', sale.id)" target="_blank" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
                         <Printer class="h-4 w-4 mr-2" />
                         Print Receipt
@@ -297,36 +355,59 @@ const getStatusColor = (status) => {
                     </div>
 
                     <!-- Payments Table -->
-                    <div v-if="sale.payments && sale.payments.length > 0" class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50">
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
                             <h2 class="text-lg font-bold text-slate-800 flex items-center">
                                 <CreditCard class="h-5 w-5 mr-2 text-emerald-500" />
                                 Payment History
                             </h2>
+                            <button
+                                v-if="sale.balance_amount > 0"
+                                type="button"
+                                @click="openPaymentModal"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 transition-colors"
+                            >
+                                <Plus class="w-3.5 h-3.5" />
+                                Add Payment
+                            </button>
                         </div>
-                        <!-- Mobile Cards -->
-                        <div class="block md:hidden border-t border-slate-100 divide-y divide-slate-100 bg-white">
-                            <div v-for="payment in sale.payments" :key="payment.id" class="p-4 flex justify-between items-center">
-                                <div>
-                                    <p class="text-sm font-bold text-slate-700 capitalize flex items-center">
-                                        {{ payment.payment_method }}
-                                    </p>
-                                    <div class="flex items-center text-xs text-slate-500 mt-1 space-x-2">
-                                        <span>{{ formatDate(payment.payment_date) }}</span>
-                                        <span>&bull;</span>
-                                        <span class="font-mono text-slate-400">{{ payment.payment_number }}</span>
+
+                        <!-- Empty Payments State -->
+                        <div v-if="!sale.payments || sale.payments.length === 0" class="p-8 text-center text-slate-400">
+                            <CreditCard class="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                            <p class="font-bold text-slate-700 text-sm">No payments recorded</p>
+                            <p class="text-xs text-slate-500 mt-0.5">This sale was placed on credit without upfront payment.</p>
+                            <button
+                                v-if="sale.balance_amount > 0"
+                                type="button"
+                                @click="openPaymentModal"
+                                class="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-xs transition-colors"
+                            >
+                                <Plus class="w-3.5 h-3.5" />
+                                Record First Payment
+                            </button>
+                        </div>
+                        <template v-else>
+                            <!-- Mobile Cards -->
+                            <div class="block md:hidden border-t border-slate-100 divide-y divide-slate-100 bg-white">
+                                <div v-for="payment in sale.payments" :key="payment.id" class="p-4 flex justify-between items-center">
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-700 capitalize flex items-center">
+                                            {{ payment.payment_method }}
+                                        </p>
+                                        <div class="flex items-center text-xs text-slate-500 mt-1 space-x-2">
+                                            <span>{{ formatDate(payment.payment_date) }}</span>
+                                            <span>&bull;</span>
+                                            <span class="font-mono text-slate-400">{{ payment.payment_number }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-sm font-bold text-emerald-600">
+                                            {{ Number(payment.amount).toLocaleString() }} TZS
+                                        </p>
                                     </div>
                                 </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-bold text-emerald-600">
-                                        {{ Number(payment.amount).toLocaleString() }} TZS
-                                    </p>
-                                </div>
                             </div>
-                            <div v-if="!sale.payments || sale.payments.length === 0" class="p-6 text-center text-sm text-slate-500 italic">
-                                No payments found.
-                            </div>
-                        </div>
 
                         <!-- Desktop Table -->
                         <div class="hidden md:block overflow-x-auto">
@@ -351,6 +432,7 @@ const getStatusColor = (status) => {
                                 </tbody>
                             </table>
                         </div>
+                        </template>
                     </div>
                 </div>
 
@@ -422,6 +504,17 @@ const getStatusColor = (status) => {
                                         {{ Number(sale.balance_amount).toLocaleString() }} TZS
                                     </span>
                                 </div>
+
+                                <button
+                                    v-if="sale.balance_amount > 0"
+                                    type="button"
+                                    @click="openPaymentModal"
+                                    class="w-full mt-2 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 active:scale-98"
+                                >
+                                    <CreditCard class="w-4 h-4" />
+                                    <span>Record Payment (Lipia)</span>
+                                </button>
+
                                 <div class="flex justify-between items-center pt-3 border-t border-slate-100">
                                     <span class="text-slate-500 text-sm font-bold uppercase tracking-wider">Payment Status</span>
                                     <span :class="[
@@ -436,6 +529,186 @@ const getStatusColor = (status) => {
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Record Payment Modal -->
+        <div v-if="showRecordPaymentModal" class="fixed inset-0 z-[100] overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4 p-4 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity" @click="closePaymentModal"></div>
+                </div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-slate-100 p-6 space-y-5">
+                    <!-- Modal Header -->
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                                <CreditCard class="w-5 h-5" />
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="text-lg font-black text-slate-900">Record Payment</h3>
+                                <p class="text-xs text-slate-500 font-mono">Invoice #{{ sale.sale_number }}</p>
+                            </div>
+                        </div>
+                        <button @click="closePaymentModal" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors">
+                            <X class="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    <!-- Balance Banner & Shortcuts -->
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining Balance</span>
+                            <span class="text-lg font-black text-rose-600 font-mono">{{ Number(sale.balance_amount).toLocaleString() }} TZS</span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-3">
+                            <button
+                                type="button"
+                                @click="setFullBalance"
+                                class="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                            >
+                                Pay Full ({{ Number(sale.balance_amount).toLocaleString() }})
+                            </button>
+                            <button
+                                v-if="sale.balance_amount > 1000"
+                                type="button"
+                                @click="setHalfBalance"
+                                class="px-2.5 py-1 text-xs font-bold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                            >
+                                Pay Half ({{ Number(Math.round(sale.balance_amount / 2)).toLocaleString() }})
+                            </button>
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="submitPayment" class="space-y-4">
+                        <!-- Amount Received -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Amount Paying (TZS) *
+                            </label>
+                            <input
+                                v-model.number="paymentForm.amount"
+                                type="number"
+                                step="any"
+                                min="1"
+                                :max="sale.balance_amount"
+                                class="w-full text-2xl font-black text-slate-900 font-mono px-4 py-3 bg-white border-2 border-slate-200 rounded-2xl focus:border-amber-500 focus:ring-0 transition-colors"
+                                required
+                            />
+                            <p v-if="paymentForm.errors.amount" class="text-xs text-rose-600 mt-1 font-medium">{{ paymentForm.errors.amount }}</p>
+                        </div>
+
+                        <!-- Payment Method Selector -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Payment Method *
+                            </label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <button
+                                    type="button"
+                                    @click="paymentForm.payment_method = 'cash'"
+                                    :class="[
+                                        'py-2.5 px-2 rounded-xl border-2 flex flex-col items-center justify-center font-bold text-xs transition-all',
+                                        paymentForm.payment_method === 'cash'
+                                            ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    ]"
+                                >
+                                    <Banknote class="w-4 h-4 mb-1" />
+                                    Cash
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="paymentForm.payment_method = 'mobile_money'"
+                                    :class="[
+                                        'py-2.5 px-2 rounded-xl border-2 flex flex-col items-center justify-center font-bold text-xs transition-all',
+                                        paymentForm.payment_method === 'mobile_money'
+                                            ? 'border-amber-600 bg-amber-600 text-white shadow-xs'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    ]"
+                                >
+                                    <CreditCard class="w-4 h-4 mb-1" />
+                                    Mobile Money
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="paymentForm.payment_method = 'bank_transfer'"
+                                    :class="[
+                                        'py-2.5 px-2 rounded-xl border-2 flex flex-col items-center justify-center font-bold text-xs transition-all',
+                                        paymentForm.payment_method === 'bank_transfer'
+                                            ? 'border-blue-600 bg-blue-600 text-white shadow-xs'
+                                            : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    ]"
+                                >
+                                    <Landmark class="w-4 h-4 mb-1" />
+                                    Bank Tx
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3">
+                            <!-- Payment Date -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                    Date
+                                </label>
+                                <input
+                                    v-model="paymentForm.payment_date"
+                                    type="date"
+                                    class="w-full text-xs font-medium border border-slate-200 rounded-xl py-2 px-3 focus:border-amber-500 focus:ring-0"
+                                />
+                            </div>
+
+                            <!-- Reference Number -->
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                    Ref / Tx ID
+                                </label>
+                                <input
+                                    v-model="paymentForm.reference"
+                                    type="text"
+                                    placeholder="e.g. MP-12345"
+                                    class="w-full text-xs font-mono border border-slate-200 rounded-xl py-2 px-3 focus:border-amber-500 focus:ring-0"
+                                />
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                                Notes (Optional)
+                            </label>
+                            <input
+                                v-model="paymentForm.notes"
+                                type="text"
+                                placeholder="Payment remarks..."
+                                class="w-full text-xs font-medium border border-slate-200 rounded-xl py-2 px-3 focus:border-amber-500 focus:ring-0"
+                            />
+                        </div>
+
+                        <!-- Modal Actions -->
+                        <div class="flex items-center gap-3 pt-3 border-t border-slate-100">
+                            <button
+                                type="button"
+                                @click="closePaymentModal"
+                                class="px-5 py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="submit"
+                                :disabled="paymentForm.processing || paymentForm.amount <= 0"
+                                class="flex-1 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                            >
+                                <CheckCircle class="w-4 h-4 stroke-[2.5]" />
+                                <span>{{ paymentForm.processing ? 'Saving...' : 'Confirm Payment' }}</span>
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

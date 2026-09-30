@@ -205,7 +205,10 @@ const deleteSale = (id) => {
                                         {{ getUnifiedStatus(sale).label }}
                                     </span>
                                 </td>                                <td class="px-6 py-4 whitespace-nowrap text-center">
-                                    <div class="flex items-center justify-center gap-2" v-if="$can('edit sales') || $can('delete sales')">
+                                    <div class="flex items-center justify-center gap-2">
+                                        <Link :href="route('sales.show', sale.id)" class="text-slate-400 hover:text-amber-600 transition-colors p-1" title="View Details & Payments">
+                                            <Eye class="w-4 h-4" />
+                                        </Link>
                                         <Link v-if="['draft', 'on_hold', 'invoiced'].includes(sale.status) && $can('edit sales')" :href="route('sales.edit', sale.id)" class="text-slate-400 hover:text-indigo-600 transition-colors p-1" title="Edit">
                                             <Edit class="w-4 h-4" />
                                         </Link>
@@ -213,7 +216,6 @@ const deleteSale = (id) => {
                                             <Trash2 class="w-4 h-4" />
                                         </button>
                                     </div>
-                                    <span v-else class="text-slate-300 text-xs">-</span>
                                 </td>
                             </tr>
                             <tr v-if="sales.data.length === 0">

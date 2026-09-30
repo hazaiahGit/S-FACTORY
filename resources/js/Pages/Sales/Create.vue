@@ -21,6 +21,7 @@ import {
     Receipt,
     Package,
     X,
+    AlertCircle,
 } from '@lucide/vue';
 
 const props = defineProps({
@@ -526,14 +527,90 @@ const processCheckout = () => {
                                     </div>
                                 </div>
                                 
+                                <!-- Credit Sale Indicator & Deposit Presets -->
+                                <div v-if="form.status === 'credit'" class="p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 space-y-2.5">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-xs font-black text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                            <CreditCard class="w-4 h-4 text-amber-600" />
+                                            Credit Sale (Mauzo ya Mkopo)
+                                        </span>
+                                        <span class="text-xs font-mono font-bold text-amber-900">
+                                            Deni: {{ formatCurrency(Math.max(0, totalDue - (Number(paymentForm.amount) || 0))) }}
+                                        </span>
+                                    </div>
+                                    <div class="flex items-center gap-1.5 flex-wrap">
+                                        <button
+                                            type="button"
+                                            @click="paymentForm.amount = 0"
+                                            :class="[
+                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                paymentForm.amount === 0 
+                                                    ? 'bg-slate-900 text-white shadow-xs' 
+                                                    : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
+                                            ]"
+                                        >
+                                            Full Credit (0 TZS)
+                                        </button>
+                                        <button
+                                            v-if="totalDue > 0"
+                                            type="button"
+                                            @click="paymentForm.amount = Math.round(totalDue * 0.25)"
+                                            :class="[
+                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                paymentForm.amount === Math.round(totalDue * 0.25)
+                                                    ? 'bg-amber-500 text-white shadow-xs' 
+                                                    : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
+                                            ]"
+                                        >
+                                            25% Deposit
+                                        </button>
+                                        <button
+                                            v-if="totalDue > 0"
+                                            type="button"
+                                            @click="paymentForm.amount = Math.round(totalDue * 0.5)"
+                                            :class="[
+                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                paymentForm.amount === Math.round(totalDue * 0.5)
+                                                    ? 'bg-amber-500 text-white shadow-xs' 
+                                                    : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
+                                            ]"
+                                        >
+                                            50% Deposit
+                                        </button>
+                                        <button
+                                            v-if="totalDue > 0"
+                                            type="button"
+                                            @click="paymentForm.amount = totalDue"
+                                            :class="[
+                                                'px-3 py-1.5 text-xs font-bold rounded-xl transition-all',
+                                                paymentForm.amount === totalDue
+                                                    ? 'bg-emerald-600 text-white shadow-xs' 
+                                                    : 'bg-white border border-amber-200 text-slate-700 hover:bg-amber-100'
+                                            ]"
+                                        >
+                                            Full Paid
+                                        </button>
+                                    </div>
+                                    <p v-if="!form.customer_id" class="text-[11px] text-amber-800 font-medium flex items-center gap-1.5 pt-1">
+                                        <AlertCircle class="w-3.5 h-3.5 shrink-0 text-amber-600" />
+                                        Mteja hajachaguliwa. Unashauriwa kuchagua mteja ili deni liingie kwenye rekodi zake.
+                                    </p>
+                                </div>
+
                                 <div>
-                                    <label class="block text-sm font-bold text-slate-700 mb-2">Amount Received</label>
+                                    <label class="block text-sm font-bold text-slate-700 mb-2">
+                                        {{ form.status === 'credit' ? 'Down Payment / Kianzio Kilicholipwa (TZS)' : 'Amount Received' }}
+                                    </label>
                                     <div class="relative rounded-xl shadow-sm">
                                         <FormattedNumberInput v-model="paymentForm.amount" class="block w-full py-4 pl-4 pr-4 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-amber-500 text-2xl font-black text-slate-900 transition-colors" />
                                     </div>
                                     <div v-if="paymentForm.amount > totalDue" class="mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-lg flex justify-between items-center border border-emerald-100">
                                         <span class="font-bold text-sm uppercase tracking-wide">Change Due</span>
                                         <span class="font-black text-lg">{{ formatCurrency(paymentForm.amount - totalDue) }}</span>
+                                    </div>
+                                    <div v-else-if="form.status === 'credit' && paymentForm.amount < totalDue" class="mt-3 p-3 bg-rose-50 text-rose-800 rounded-lg flex justify-between items-center border border-rose-100">
+                                        <span class="font-bold text-xs uppercase tracking-wide">Remaining Credit Balance</span>
+                                        <span class="font-black text-base font-mono">{{ formatCurrency(totalDue - (Number(paymentForm.amount) || 0)) }}</span>
                                     </div>
                                 </div>
                             </div>

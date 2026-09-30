@@ -101,7 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('sales', SaleController::class);
     Route::get('pos', [SaleController::class, 'pos'])->name('pos');
-    // Route::post('sales/{sale}/payment', [SalePaymentController::class, 'store'])->name('sales.payment');
+    Route::post('sales/{sale}/payment', [SalePaymentController::class, 'store'])->name('sales.payment');
     Route::post('sales/{sale}/return', [SaleController::class, 'createReturn'])->name('sales.return');
     Route::get('sales/{sale}/print', [SaleController::class, 'print'])->name('sales.print');
     Route::post('sales/{sale}/convert-to-sale', [SaleController::class, 'convertToSale'])->name('sales.convert');
