@@ -1,0 +1,142 @@
+<script setup>
+import AppLayout from '@/Layouts/AppLayout.vue';
+import { Link, router, useForm } from '@inertiajs/vue3';
+import { ArrowLeft, Calendar, Download, Filter, ReceiptText, Banknote } from '@lucide/vue';
+
+const props = defineProps({
+    expenses: Array,
+    categories: Array,
+    summary: Object,
+    filters: Object,
+});
+
+const form = useForm({
+    start_date: props.filters.start_date,
+    end_date: props.filters.end_date,
+    category_id: props.filters.category_id || '',
+});
+
+const applyFilters = () => {
+    form.get(route('reports.expenses'), {
+        preserveState: true,
+        preserveScroll: true,
+    });
+};
+
+const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-TZ', { style: 'currency', currency: 'TZS', maximumFractionDigits: 0 }).format(value || 0);
+};
+
+const formatDate = (dateString) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+</script>
+
+<template>
+    <AppLayout>
+        <template #header>
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="flex items-center text-lg sm:text-xl">
+                    <Link :href="route('reports.index')" class="mr-3 sm:mr-4 text-slate-400 hover:text-slate-600 transition-colors">
+                        <ArrowLeft class="w-5 h-5 sm:w-6 sm:h-6" />
+                    </Link>
+                    <span class="font-bold truncate text-slate-900">Expenses Report</span>
+                </div>
+                
+                <a :href="route('reports.pdf', { type: 'expenses', start_date: form.start_date, end_date: form.end_date, category_id: form.category_id })" target="_blank" class="inline-flex items-center justify-center px-4 py-2 border border-slate-300 rounded-lg shadow-sm text-sm font-bold text-slate-700 bg-white hover:bg-slate-50 transition-colors">
+                    <Download class="w-4 h-4 mr-2" />
+                    Export PDF
+                </a>
+            </div>
+        </template>
+
+        <div class="max-w-7xl mx-auto space-y-6">
+            
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                <form @submit.prevent="applyFilters" class="flex flex-col sm:flex-row gap-4 items-end">
+                    <div class="w-full sm:w-auto flex-1 max-w-xs">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Start Date</label>
+                        <input type="date" v-model="form.start_date" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-medium text-slate-700" />
+                    </div>
+                    <div class="w-full sm:w-auto flex-1 max-w-xs">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">End Date</label>
+                        <input type="date" v-model="form.end_date" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-medium text-slate-700" />
+                    </div>
+                    <div class="w-full sm:w-auto flex-1 max-w-xs">
+                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Category</label>
+                        <select v-model="form.category_id" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm font-medium text-slate-700">
+                            <option value="">All Categories</option>
+                            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="w-full sm:w-auto inline-flex items-center justify-center px-6 py-2 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors h-[38px]">
+                        <Filter class="w-4 h-4 mr-2" />
+                        Generate
+                    </button>
+                </form>
+            </div>
+
+            <!-- Summary Widgets -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-rose-500">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Expenses</p>
+                    <p class="text-2xl font-black text-rose-600">{{ formatCurrency(summary.total_expenses) }}</p>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 border-l-4 border-l-slate-400">
+                    <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Total Transactions</p>
+                    <p class="text-2xl font-black text-slate-900">{{ summary.total_transactions }}</p>
+                </div>
+            </div>
+
+            <!-- Transactions List -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <h3 class="text-sm font-bold text-slate-800 flex items-center uppercase tracking-wider">
+                        <ReceiptText class="w-4 h-4 mr-2 text-indigo-500" />
+                        Expense Transactions
+                    </h3>
+                </div>
+                
+                <div class="block">
+                    <div v-for="expense in expenses" :key="expense.id" class="p-4 sm:p-5 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors">
+                        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+                            <div>
+                                <div class="flex items-center gap-3 mb-1">
+                                    <span class="text-sm font-bold text-indigo-600">{{ expense.expense_number }}</span>
+                                    <span :class="[
+                                        'px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider',
+                                        expense.status === 'cancelled' ? 'bg-rose-100 text-rose-800' : 
+                                        (expense.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600')
+                                    ]">{{ expense.status }}</span>
+                                </div>
+                                <div class="text-sm font-bold text-slate-900 mb-1">{{ expense.title }}</div>
+                                <div class="text-xs font-medium text-slate-500 flex flex-wrap items-center gap-3">
+                                    <span class="flex items-center"><Calendar class="w-3 h-3 mr-1" /> {{ formatDate(expense.expense_date) }}</span>
+                                    <span v-if="expense.category" class="text-slate-700 font-bold px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded">
+                                        {{ expense.category.name }}
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div class="flex gap-4 sm:gap-6 bg-slate-50 sm:bg-transparent p-3 sm:p-0 rounded-lg border sm:border-0 border-slate-100 items-center">
+                                <div class="text-right">
+                                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Amount</span>
+                                    <span :class="['text-sm font-black', expense.status === 'cancelled' ? 'line-through text-slate-400' : 'text-rose-600']">{{ formatCurrency(expense.amount) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div v-if="expenses.length === 0" class="p-12 text-center text-slate-400">
+                        <Banknote class="mx-auto h-12 w-12 text-slate-300 mb-3" />
+                        <p class="font-medium text-slate-600">No expenses found for this period.</p>
+                        <p class="text-sm mt-1">Try adjusting your date range filters or category.</p>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+    </AppLayout>
+</template>
