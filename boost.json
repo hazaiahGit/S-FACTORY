@@ -2,17 +2,22 @@
     "agents": [
         "antigravity"
     ],
-    "cloud": true,
+    "cloud": false,
     "guidelines": true,
     "mcp": true,
     "nightwatch": false,
+    "packages": [
+        "spatie/laravel-permission",
+        "maatwebsite/excel"
+    ],
     "sail": false,
     "skills": [
         "infer-conventions",
-        "deploying-to-cloud",
         "laravel-best-practices",
         "testing-best-practices",
         "inertia-vue-development",
-        "tailwindcss-development"
+        "tailwindcss-development",
+        "laravel-excel",
+        "laravel-permission-development"
     ]
 }

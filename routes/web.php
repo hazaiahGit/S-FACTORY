@@ -1,42 +1,50 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\ActiveBranchController;
+use App\Http\Controllers\ApprovalController;
+use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\BranchController;
 use App\Http\Controllers\BrandController;
-use App\Http\Controllers\UnitController;
-use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\CustomerController;
-use App\Http\Controllers\PurchaseController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\SalePaymentController;
-// use App\Http\Controllers\PurchasePaymentController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
-use App\Http\Controllers\StockController;
-use App\Http\Controllers\StockTransferController;
-use App\Http\Controllers\StockTakeController;
-use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\Manufacturing\BillOfMaterialController;
 use App\Http\Controllers\Manufacturing\ProductionOrderController;
-use App\Http\Controllers\BranchController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\AuditLogController;
-use App\Http\Controllers\ApprovalController;
-use App\Http\Controllers\SettingsController;
+// use App\Http\Controllers\PurchasePaymentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProductTypeController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PurchaseController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SalePaymentController;
+use App\Http\Controllers\SettingsController;
+use App\Http\Controllers\StockAdjustmentController;
+use App\Http\Controllers\StockController;
+use App\Http\Controllers\StockTakeController;
+use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\System\PackageController;
+use App\Http\Controllers\System\TenantController;
 use App\Http\Controllers\TargetController;
+use App\Http\Controllers\UnitController;
+use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
 // ─── Public Routes ─────────────────────────────────────────────────────────
 
 Route::get('/', function () {
     if (auth()->check()) {
+        if (auth()->user()->is_system_admin && ! auth()->user()->business_id) {
+            return redirect()->route('system.tenants.index');
+        }
+
         return redirect()->route('dashboard');
     }
+
     return redirect()->route('login');
 });
 
@@ -62,8 +70,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('products.toggle-status');
 
     Route::resource('categories', CategoryController::class);
-    Route::resource('brands', BrandController::class);
+    Route::post('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+
     Route::resource('units', UnitController::class);
+    Route::post('units/{unit}/toggle-status', [UnitController::class, 'toggleStatus'])->name('units.toggle-status');
+
+    Route::resource('product-types', ProductTypeController::class);
+    Route::post('product-types/{productType}/toggle-status', [ProductTypeController::class, 'toggleStatus'])->name('product-types.toggle-status');
+
+    Route::resource('brands', BrandController::class);
 
     // ─── Suppliers ────────────────────────────────────────────────────
 
@@ -99,7 +114,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Inventory / Stock ────────────────────────────────────────────
 
     Route::get('inventory', [StockController::class, 'index'])->name('inventory.index');
-        Route::get('inventory/movements', [StockController::class, 'movements'])->name('inventory.movements');
+    Route::get('inventory/movements', [StockController::class, 'movements'])->name('inventory.movements');
     Route::delete('inventory/movements/{movement}', [StockController::class, 'destroyMovement'])->name('inventory.movements.destroy');
     Route::get('inventory/low-stock', [StockController::class, 'lowStock'])->name('inventory.low-stock');
     Route::get('inventory/valuation', [StockController::class, 'valuation'])->name('inventory.valuation');
@@ -161,13 +176,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // ─── Targets & Performance ────────────────────────────────────────
 
-    
-    Route::post('/set-active-branch', [\App\Http\Controllers\ActiveBranchController::class, 'update'])->name('active-branch.update');
-        // ─── System Administrator Area ─────────────────────────────────────
+    Route::post('/set-active-branch', [ActiveBranchController::class, 'update'])->name('active-branch.update');
+    // ─── System Administrator Area ─────────────────────────────────────
     Route::middleware(['system.admin'])->prefix('system')->name('system.')->group(function () {
-        Route::resource('tenants', \App\Http\Controllers\System\TenantController::class)->except(['create', 'show', 'edit']);
-        Route::put('tenants/{tenant}/subscription', [\App\Http\Controllers\System\TenantController::class, 'updateSubscription'])->name('tenants.subscription');
-        Route::resource('packages', \App\Http\Controllers\System\PackageController::class)->except(['create', 'show', 'edit']);
+        Route::resource('tenants', TenantController::class)->except(['create', 'show', 'edit']);
+        Route::put('tenants/{tenant}/subscription', [TenantController::class, 'updateSubscription'])->name('tenants.subscription');
+        Route::post('tenants/{tenant}/activate', [TenantController::class, 'activate'])->name('tenants.activate');
+        Route::post('tenants/{tenant}/suspend', [TenantController::class, 'suspend'])->name('tenants.suspend');
+        Route::resource('packages', PackageController::class)->except(['create', 'show', 'edit']);
     });
 
     Route::resource('targets', TargetController::class);
@@ -220,9 +236,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         abort_unless(in_array($locale, ['en', 'sw']), 404);
         auth()->user()->update(['preferred_language' => $locale]);
         session(['locale' => $locale]);
+
         return back();
     })->name('language.switch');
 });
 
-require __DIR__ . '/auth.php';
-
+require __DIR__.'/auth.php';

@@ -6,18 +6,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Unit extends Model
+class ProductType extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'business_id', 'name', 'abbreviation', 'type', 'allow_decimal', 'description', 'is_active',
+        'business_id',
+        'name',
+        'code',
+        'description',
+        'is_sold',
+        'is_purchased',
+        'is_manufactured',
+        'track_stock',
+        'is_active',
+        'is_default',
     ];
 
     protected $casts = [
+        'is_sold' => 'boolean',
+        'is_purchased' => 'boolean',
+        'is_manufactured' => 'boolean',
+        'track_stock' => 'boolean',
         'is_active' => 'boolean',
-        'allow_decimal' => 'boolean',
+        'is_default' => 'boolean',
     ];
 
     // ─── Relationships ────────────────────────────────────────────────────────
@@ -39,8 +53,18 @@ class Unit extends Model
         return $query->where('is_active', true);
     }
 
-    public function scopeByType($query, string $type)
+    public function scopeForSale($query)
     {
-        return $query->where('type', $type);
+        return $query->where('is_sold', true);
+    }
+
+    public function scopeForPurchase($query)
+    {
+        return $query->where('is_purchased', true);
+    }
+
+    public function scopeManufacturable($query)
+    {
+        return $query->where('is_manufactured', true);
     }
 }

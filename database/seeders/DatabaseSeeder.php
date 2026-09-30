@@ -2,81 +2,74 @@
 
 namespace Database\Seeders;
 
-use App\Models\Business;
 use App\Models\Branch;
+use App\Models\Business;
 use App\Models\User;
-use App\Models\Category;
-use App\Models\Unit;
-use App\Models\Product;
-use App\Models\Supplier;
-use App\Models\Customer;
-use App\Models\ExpenseCategory;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 
 class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Create Default Business
-        $business = Business::create([
-            'name' => 'Mega Hardware & Steel Factory',
-            'slug' => 'mega-hardware',
-            'code' => 'MHSF',
-            'business_type' => 'both',
-            'currency' => 'TZS',
-            'currency_symbol' => 'TZS',
-            'locale' => 'en',
-            'timezone' => 'Africa/Dar_es_Salaam',
-        ]);
+        // 1. Seed Permissions & Roles
+        $this->call(PermissionSeeder::class);
 
-        // 2. Create Branches
-        $mainBranch = Branch::create([
-            'business_id' => $business->id,
-            'name' => 'Main HQ & Hardware Store',
-            'code' => 'HQ-01',
-            'type' => 'head_office',
-            'is_main' => true,
-        ]);
+        // 2. Seed System Administrator & Subscription Packages
+        $this->call(SystemAdminSeeder::class);
 
-        $factoryBranch = Branch::create([
-            'business_id' => $business->id,
-            'name' => 'Steel Production Factory',
-            'code' => 'FAC-01',
-            'type' => 'factory',
-            'is_main' => false,
-        ]);
+        // 3. Create Default Business & Branches (if not already existing)
+        $business = Business::firstOrCreate(
+            ['slug' => 'mega-hardware'],
+            [
+                'name' => 'Mega Hardware & Steel Factory',
+                'code' => 'MHSF',
+                'business_type' => 'both',
+                'currency' => 'TZS',
+                'currency_symbol' => 'TZS',
+                'locale' => 'en',
+                'timezone' => 'Africa/Dar_es_Salaam',
+            ]
+        );
 
-        // 3. Create Roles & Permissions
-        $adminRole = Role::create(['name' => 'Super Admin']);
-        $managerRole = Role::create(['name' => 'Manager']);
-        $cashierRole = Role::create(['name' => 'Cashier']);
+        $mainBranch = Branch::firstOrCreate(
+            ['business_id' => $business->id, 'code' => 'HQ-01'],
+            [
+                'name' => 'Main HQ & Hardware Store',
+                'type' => 'head_office',
+                'is_main' => true,
+            ]
+        );
 
-        // 4. Create Admin User
-        $admin = User::create([
-            'name' => 'Admin User',
-            'email' => 'admin@sfactory.com',
-            'password' => Hash::make('password'),
-            'business_id' => $business->id,
-            'branch_id' => $mainBranch->id,
-            'job_title' => 'System Administrator',
-        ]);
-        $admin->assignRole($adminRole);
-        $admin->branches()->attach([$mainBranch->id, $factoryBranch->id]);
+        $factoryBranch = Branch::firstOrCreate(
+            ['business_id' => $business->id, 'code' => 'FAC-01'],
+            [
+                'name' => 'Steel Production Factory',
+                'type' => 'factory',
+                'is_main' => false,
+            ]
+        );
 
-        $cashier = User::create([
-            'name' => 'John Cashier',
-            'email' => 'cashier@sfactory.com',
-            'password' => Hash::make('password'),
-            'business_id' => $business->id,
-            'branch_id' => $mainBranch->id,
-            'job_title' => 'Senior Cashier',
-        ]);
+        $managerRole = Role::firstOrCreate(['name' => 'Manager']);
+        $cashierRole = Role::firstOrCreate(['name' => 'Cashier']);
+
+        // Cashier user
+        $cashier = User::firstOrCreate(
+            ['email' => 'cashier@sfactory.com'],
+            [
+                'name' => 'John Cashier',
+                'password' => Hash::make('password'),
+                'business_id' => $business->id,
+                'branch_id' => $mainBranch->id,
+                'job_title' => 'Senior Cashier',
+            ]
+        );
         $cashier->assignRole($cashierRole);
 
-        // 5. Default Settings or setup can go here
-        echo "✅ Fresh System Seeded Successfully! (No dummy data)\n";
+        // Seed tenant catalog taxonomies
+        \App\Services\TenantCatalogSeederService::seedTenantDefaults($business);
+
+        echo "✅ Fresh System Seeded Successfully! (Superadmin, Tenant, and Demo accounts ready)\n";
     }
 }

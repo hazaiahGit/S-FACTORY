@@ -4,8 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Business extends Model
 {
@@ -22,15 +22,15 @@ class Business extends Model
     ];
 
     protected $casts = [
-        'tax_enabled'                       => 'boolean',
-        'tax_inclusive'                     => 'boolean',
-        'negative_stock_allowed'            => 'boolean',
-        'require_delete_reason'             => 'boolean',
+        'tax_enabled' => 'boolean',
+        'tax_inclusive' => 'boolean',
+        'negative_stock_allowed' => 'boolean',
+        'require_delete_reason' => 'boolean',
         'approval_required_for_adjustments' => 'boolean',
-        'is_active'                         => 'boolean',
-        'is_main'                           => 'boolean',
-        'tax_rate'                          => 'decimal:2',
-        'settings'                          => 'array',
+        'is_active' => 'boolean',
+        'is_main' => 'boolean',
+        'tax_rate' => 'decimal:2',
+        'settings' => 'array',
     ];
 
     // ─── Relationships ────────────────────────────────────────────────────────
@@ -58,6 +58,11 @@ class Business extends Model
     public function units(): HasMany
     {
         return $this->hasMany(Unit::class);
+    }
+
+    public function productTypes(): HasMany
+    {
+        return $this->hasMany(ProductType::class);
     }
 
     public function products(): HasMany
@@ -111,7 +116,6 @@ class Business extends Model
 
     public function scopeActive($query)
     {
-        return $query->where('is_active',
-        'subscription_package_id', 'subscription_ends_at', 'subscription_status', true);
+        return $query->where('is_active', true);
     }
 }

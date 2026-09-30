@@ -19,6 +19,7 @@ import { UserCog, LayoutDashboard,
     Target,
     AlertTriangle,
     Building2,
+    PackageOpen,
     ServerCrash
 } from '@lucide/vue';
 import { Menu as HeadlessMenu, MenuButton, MenuItems, MenuItem, Popover, PopoverButton, PopoverPanel } from '@headlessui/vue';
@@ -76,7 +77,12 @@ const allNavItems = [
     { name: 'Branches', route: 'branches.index', icon: Building2, permission: 'manage users' }, // Reusing manage users permission for now, or just allow super admin
 ];
 
-const navigation = computed(() => allNavItems.filter(item => hasPermission(item.permission)));
+const navigation = computed(() => {
+    if (user?.is_system_admin && !user?.business_id) {
+        return [];
+    }
+    return allNavItems.filter(item => hasPermission(item.permission));
+});
 </script>
 
 <template>
@@ -101,10 +107,10 @@ const navigation = computed(() => allNavItems.filter(item => hasPermission(item.
 
             <!-- Business & Branch Info -->
             <div :class="['p-4 border-b border-slate-800 bg-slate-800/50', !sidebarOpen ? 'lg:hidden' : '']">
-                <div class="text-sm font-semibold text-white truncate">{{ business?.name || 'My Business' }}</div>
+                <div class="text-sm font-semibold text-white truncate">{{ business?.name || (user?.is_system_admin ? 'S-Factory Platform' : 'My Business') }}</div>
                 <div class="text-xs text-slate-400 truncate mt-1 flex items-center">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
-                    {{ branch?.name || 'Main Branch' }}
+                    {{ branch?.name || (user?.is_system_admin ? 'Platform Admin' : 'Main Branch') }}
                 </div>
             </div>
 
@@ -136,26 +142,43 @@ const navigation = computed(() => allNavItems.filter(item => hasPermission(item.
             </nav>
 
                         <!-- System Management (System Admins Only) -->
-            <div v-if="$page.props.auth.user && $page.props.auth.user.is_system_admin" class="px-3 mt-4 mb-2">
-                <div :class="['text-xs font-bold text-slate-500 uppercase tracking-wider pl-3', !sidebarOpen ? 'lg:hidden' : '']">
+            <div v-if="$page.props.auth.user && $page.props.auth.user.is_system_admin" class="px-3 mt-4 mb-2 space-y-1">
+                <div :class="['text-xs font-bold text-slate-500 uppercase tracking-wider pl-3 mb-2', !sidebarOpen ? 'lg:hidden' : '']">
                     System Admin
                 </div>
                 <Link
                     :href="route('system.tenants.index')"
                     @click="window?.innerWidth < 1024 ? sidebarOpen = false : null"
                     :class="[
-                        route().current('system.tenants.*') || route().current('system.packages.*')
+                        route().current('system.tenants.*')
                             ? 'bg-rose-500/10 text-rose-500'
                             : 'hover:bg-slate-800 hover:text-white',
-                        'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors mt-2 text-slate-400'
+                        'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-slate-400'
                     ]"
-                    :title="!sidebarOpen ? 'System Tenants' : ''"
+                    :title="!sidebarOpen ? 'Tenants & Admins' : ''"
                 >
-                    <ServerCrash :class="[
-                            route().current('system.tenants.*') || route().current('system.packages.*') ? 'text-rose-500' : 'text-slate-400 group-hover:text-white',
+                    <Building2 :class="[
+                            route().current('system.tenants.*') ? 'text-rose-500' : 'text-slate-400 group-hover:text-white',
                             'flex-shrink-0 h-5 w-5'
                         ]" />
-                    <span :class="['ml-3', !sidebarOpen ? 'lg:hidden' : '']">Tenants & Packages</span>
+                    <span :class="['ml-3', !sidebarOpen ? 'lg:hidden' : '']">Tenants & Admins</span>
+                </Link>
+                <Link
+                    :href="route('system.packages.index')"
+                    @click="window?.innerWidth < 1024 ? sidebarOpen = false : null"
+                    :class="[
+                        route().current('system.packages.*')
+                            ? 'bg-rose-500/10 text-rose-500'
+                            : 'hover:bg-slate-800 hover:text-white',
+                        'group flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors text-slate-400'
+                    ]"
+                    :title="!sidebarOpen ? 'Subscription Packages' : ''"
+                >
+                    <PackageOpen :class="[
+                            route().current('system.packages.*') ? 'text-rose-500' : 'text-slate-400 group-hover:text-white',
+                            'flex-shrink-0 h-5 w-5'
+                        ]" />
+                    <span :class="['ml-3', !sidebarOpen ? 'lg:hidden' : '']">Subscription Packages</span>
                 </Link>
             </div>
 

@@ -15,6 +15,7 @@ use App\Models\Stock;
 use App\Models\Supplier;
 use App\Services\ProfitCalculationService;
 use Carbon\Carbon;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -25,9 +26,14 @@ class DashboardController extends Controller
         private ProfitCalculationService $profitService
     ) {}
 
-    public function index(Request $request): Response
+    public function index(Request $request): Response|RedirectResponse
     {
         $user = auth()->user();
+
+        if ($user->is_system_admin && ! $user->business_id) {
+            return redirect()->route('system.tenants.index');
+        }
+
         $businessId = $user->business_id;
         $branchId = $request->get('branch_id', $user->branch_id);
 
