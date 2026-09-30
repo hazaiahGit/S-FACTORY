@@ -20,7 +20,10 @@ import { UserCog, LayoutDashboard,
     AlertTriangle,
     Building2,
     PackageOpen,
-    ServerCrash
+    ServerCrash,
+    FolderTree,
+    Scale,
+    Boxes
 } from '@lucide/vue';
 import { Menu as HeadlessMenu, MenuButton, MenuItems, MenuItem, Popover, PopoverButton, PopoverPanel } from '@headlessui/vue';
 
@@ -65,6 +68,9 @@ const allNavItems = [
     { name: 'POS / Sales', route: 'sales.index', icon: ShoppingCart, permission: 'view sales' },
     { name: 'Purchases', route: 'purchases.index', icon: Receipt, permission: 'view purchases' },
     { name: 'Products', route: 'products.index', icon: Package, permission: 'view products' },
+    { name: 'Categories', route: 'categories.index', icon: FolderTree, permission: 'view products' },
+    { name: 'Units of Measure', route: 'units.index', icon: Scale, permission: 'view products' },
+    { name: 'Product Types', route: 'product-types.index', icon: Boxes, permission: 'view products' },
     { name: 'Inventory', route: 'inventory.index', icon: Package, permission: 'view inventory' },
     { name: 'Recipes / BOM', route: 'bom.index', icon: ListTree, permission: 'view recipes' },
     { name: 'Transfers', route: 'stock-transfers.index', icon: ArrowRightLeft, permission: 'view inventory' },

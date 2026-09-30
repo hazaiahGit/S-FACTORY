@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductType;
 use App\Models\Stock;
 use App\Models\StockMovement;
 use App\Models\Unit;
@@ -13,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class ProductController extends Controller
@@ -79,8 +81,9 @@ class ProductController extends Controller
         $businessId = $request->user()->business_id;
 
         return Inertia::render('Products/Create', [
-            'categories' => Category::where('business_id', $businessId)->get(['id', 'name']),
-            'units' => Unit::where('business_id', $businessId)->get(['id', 'name', 'abbreviation']),
+            'categories' => Category::where('business_id', $businessId)->where('is_active', true)->get(['id', 'name']),
+            'units' => Unit::where('business_id', $businessId)->where('is_active', true)->get(['id', 'name', 'abbreviation']),
+            'productTypes' => ProductType::where('business_id', $businessId)->where('is_active', true)->get(['id', 'name', 'code', 'is_manufactured', 'track_stock', 'is_sold', 'is_purchased']),
         ]);
     }
 
@@ -103,10 +106,11 @@ class ProductController extends Controller
             'sku' => ['required', 'string', 'max:100', 'unique:products,sku'],
             'barcode' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'category_id' => ['required', 'exists:categories,id'],
+            'category_id' => ['required', Rule::exists('categories', 'id')->where('business_id', $businessId)],
             'brand_name' => ['nullable', 'string', 'max:100'],
-            'unit_id' => ['required', 'exists:units,id'],
-            'product_type' => ['nullable', 'string', 'in:product,raw_material,service,manufactured'],
+            'unit_id' => ['required', Rule::exists('units', 'id')->where('business_id', $businessId)],
+            'product_type_id' => ['nullable', Rule::exists('product_types', 'id')->where('business_id', $businessId)],
+            'product_type' => ['nullable', 'string', 'max:50'],
             'total_cost' => ['required', 'numeric', 'min:0'],
             'opening_stock' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
@@ -124,6 +128,19 @@ class ProductController extends Controller
         ]);
 
         $validated['business_id'] = $businessId;
+
+        // Resolve product_type and product_type_id
+        if (! empty($validated['product_type_id'])) {
+            $matchedType = ProductType::where('business_id', $businessId)->find($validated['product_type_id']);
+            if ($matchedType) {
+                $validated['product_type'] = $matchedType->code;
+            }
+        } elseif (! empty($validated['product_type'])) {
+            $matchedType = ProductType::where('business_id', $businessId)->where('code', $validated['product_type'])->first();
+            if ($matchedType) {
+                $validated['product_type_id'] = $matchedType->id;
+            }
+        }
         $validated['slug'] = Str::slug($validated['name']).'-'.time();
 
         // Compute cost per unit from total_cost ÷ opening_stock
@@ -210,6 +227,7 @@ class ProductController extends Controller
             'categories' => Category::where('business_id', $businessId)->get(['id', 'name']),
             'brands' => Brand::where('business_id', $businessId)->get(['id', 'name']),
             'units' => Unit::where('business_id', $businessId)->get(['id', 'name', 'abbreviation']),
+            'productTypes' => ProductType::where('business_id', $businessId)->get(['id', 'name', 'code', 'is_manufactured', 'track_stock', 'is_sold', 'is_purchased']),
         ]);
     }
 
@@ -219,15 +237,18 @@ class ProductController extends Controller
             abort(403);
         }
 
+        $businessId = $request->user()->business_id;
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['required', 'string', 'max:100', 'unique:products,sku,'.$product->id],
             'barcode' => ['nullable', 'string', 'max:100'],
             'description' => ['nullable', 'string'],
-            'category_id' => ['required', 'exists:categories,id'],
+            'category_id' => ['required', Rule::exists('categories', 'id')->where('business_id', $businessId)],
             'brand_name' => ['nullable', 'string', 'max:100'],
-            'unit_id' => ['required', 'exists:units,id'],
-            'product_type' => ['nullable', 'string', 'in:product,raw_material,service,manufactured'],
+            'unit_id' => ['required', Rule::exists('units', 'id')->where('business_id', $businessId)],
+            'product_type_id' => ['nullable', Rule::exists('product_types', 'id')->where('business_id', $businessId)],
+            'product_type' => ['nullable', 'string', 'max:50'],
             'purchase_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
             'wholesale_price' => ['nullable', 'numeric', 'min:0'],
@@ -244,6 +265,19 @@ class ProductController extends Controller
         ]);
 
         $validated['slug'] = Str::slug($validated['name']).'-'.$product->business_id;
+
+        // Resolve product_type and product_type_id
+        if (! empty($validated['product_type_id'])) {
+            $matchedType = ProductType::where('business_id', $businessId)->find($validated['product_type_id']);
+            if ($matchedType) {
+                $validated['product_type'] = $matchedType->code;
+            }
+        } elseif (! empty($validated['product_type'])) {
+            $matchedType = ProductType::where('business_id', $businessId)->where('code', $validated['product_type'])->first();
+            if ($matchedType) {
+                $validated['product_type_id'] = $matchedType->id;
+            }
+        }
 
         // Find or create brand from free text
         if (! empty($validated['brand_name'])) {

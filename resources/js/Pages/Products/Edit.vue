@@ -2,13 +2,17 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Package, DollarSign, BarChart2, Upload, X, RefreshCw, Hash } from '@lucide/vue';
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 
 const props = defineProps({
     product: Object,
     categories: Array,
     brands: Array,
     units: Array,
+    productTypes: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const form = useForm({
@@ -19,6 +23,7 @@ const form = useForm({
     category_id: props.product.category_id ?? '',
     brand_name: props.product.brand?.name ?? '',
     unit_id: props.product.unit_id ?? '',
+    product_type_id: props.product.product_type_id ?? '',
     product_type: props.product.product_type ?? 'product',
     purchase_price: props.product.purchase_price ?? '',
     selling_price: props.product.selling_price ?? '',
@@ -34,6 +39,21 @@ const form = useForm({
     notes: props.product.notes ?? '',
     image: null,
     _method: 'PUT',
+});
+
+// Match initial product_type_id if only product_type code was stored
+if (!form.product_type_id && props.productTypes?.length) {
+    const matched = props.productTypes.find(t => t.code === form.product_type);
+    if (matched) {
+        form.product_type_id = matched.id;
+    }
+}
+
+watch(() => form.product_type_id, (newTypeId) => {
+    const matched = props.productTypes?.find(t => t.id === newTypeId);
+    if (matched) {
+        form.product_type = matched.code;
+    }
 });
 
 const imagePreview = ref(null);
@@ -107,7 +127,10 @@ const submit = () => {
 
                     <div class="grid grid-cols-2 gap-4 mb-5">
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Category <span class="text-rose-500">*</span></label>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-sm font-semibold text-slate-700">Category <span class="text-rose-500">*</span></label>
+                                <a :href="route('categories.index')" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">+ Manage</a>
+                            </div>
                             <select v-model="form.category_id" class="w-full border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">Select category…</option>
                                 <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
@@ -122,7 +145,10 @@ const submit = () => {
 
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Unit of Measure <span class="text-rose-500">*</span></label>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-sm font-semibold text-slate-700">Unit of Measure <span class="text-rose-500">*</span></label>
+                                <a :href="route('units.index')" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">+ Manage</a>
+                            </div>
                             <select v-model="form.unit_id" class="w-full border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">Select unit…</option>
                                 <option v-for="unit in units" :key="unit.id" :value="unit.id">{{ unit.name }} ({{ unit.abbreviation }})</option>
@@ -130,13 +156,17 @@ const submit = () => {
                             <p v-if="form.errors.unit_id" class="mt-1 text-xs text-rose-600">{{ form.errors.unit_id }}</p>
                         </div>
                         <div>
-                            <label class="block text-sm font-semibold text-slate-700 mb-1.5">Product Type</label>
-                            <select v-model="form.product_type" class="w-full border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="product">Finished Product</option>
-                                <option value="raw_material">Raw Material</option>
-                                <option value="service">Service</option>
-                                <option value="manufactured">Manufactured</option>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="block text-sm font-semibold text-slate-700">Product Type</label>
+                                <a :href="route('product-types.index')" target="_blank" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">+ Manage</a>
+                            </div>
+                            <select v-model="form.product_type_id" class="w-full border-slate-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">Select product type…</option>
+                                <option v-for="pt in productTypes" :key="pt.id" :value="pt.id">
+                                    {{ pt.name }}
+                                </option>
                             </select>
+                            <p v-if="form.errors.product_type_id" class="mt-1 text-xs text-rose-600">{{ form.errors.product_type_id }}</p>
                         </div>
                     </div>
                 </div>

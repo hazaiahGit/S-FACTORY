@@ -70,13 +70,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('products.toggle-status');
 
     Route::resource('categories', CategoryController::class);
-    Route::post('categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
+    Route::match(['post', 'patch'], 'categories/{category}/toggle-status', [CategoryController::class, 'toggleStatus'])->name('categories.toggle-status');
 
     Route::resource('units', UnitController::class);
-    Route::post('units/{unit}/toggle-status', [UnitController::class, 'toggleStatus'])->name('units.toggle-status');
+    Route::match(['post', 'patch'], 'units/{unit}/toggle-status', [UnitController::class, 'toggleStatus'])->name('units.toggle-status');
 
     Route::resource('product-types', ProductTypeController::class);
-    Route::post('product-types/{productType}/toggle-status', [ProductTypeController::class, 'toggleStatus'])->name('product-types.toggle-status');
+    Route::match(['post', 'patch'], 'product-types/{productType}/toggle-status', [ProductTypeController::class, 'toggleStatus'])->name('product-types.toggle-status');
 
     Route::resource('brands', BrandController::class);
 
@@ -101,7 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('sales', SaleController::class);
     Route::get('pos', [SaleController::class, 'pos'])->name('pos');
-    Route::post('sales/{sale}/payment', [SalePaymentController::class, 'store'])->name('sales.payment');
+    // Route::post('sales/{sale}/payment', [SalePaymentController::class, 'store'])->name('sales.payment');
     Route::post('sales/{sale}/return', [SaleController::class, 'createReturn'])->name('sales.return');
     Route::get('sales/{sale}/print', [SaleController::class, 'print'])->name('sales.print');
     Route::post('sales/{sale}/convert-to-sale', [SaleController::class, 'convertToSale'])->name('sales.convert');
