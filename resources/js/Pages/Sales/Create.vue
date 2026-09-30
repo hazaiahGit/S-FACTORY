@@ -18,7 +18,9 @@ import {
     PauseCircle,
     PenLine,
     Truck,
-    Receipt
+    Receipt,
+    Package,
+    X,
 } from '@lucide/vue';
 
 const props = defineProps({
@@ -45,6 +47,95 @@ const togglePriceMode = (mode) => {
         priceMode.value = mode;
     }
 };
+
+// Quantity Picker Modal State
+const showQuantityModal = ref(false);
+const activeProductForModal = ref(null);
+const modalQty = ref(1);
+
+const quickPresets = [
+    [1, 2, 3, 4, 5, 6],
+    [10, 12, 15, 20, 24, 50]
+];
+
+const openQuantityModal = (product) => {
+    if (product.track_stock && product.current_stock <= 0) return;
+    activeProductForModal.value = product;
+
+    const existing = form.items.find(i => i.product_id === product.id && i.price_type === priceMode.value);
+    modalQty.value = existing ? existing.quantity : 1;
+    showQuantityModal.value = true;
+};
+
+const openQuantityModalFromItem = (item) => {
+    const product = props.products.find(p => p.id === item.product_id);
+    if (product) {
+        activeProductForModal.value = product;
+        modalQty.value = item.quantity;
+        showQuantityModal.value = true;
+    }
+};
+
+const closeQuantityModal = () => {
+    showQuantityModal.value = false;
+    activeProductForModal.value = null;
+    modalQty.value = 1;
+};
+
+const setPresetQty = (qty) => {
+    const max = activeProductForModal.value?.track_stock ? activeProductForModal.value.current_stock : 999999;
+    modalQty.value = Math.min(qty, max);
+};
+
+const incrementModalQty = () => {
+    const max = activeProductForModal.value?.track_stock ? activeProductForModal.value.current_stock : 999999;
+    const current = parseInt(modalQty.value) || 0;
+    if (current < max) {
+        modalQty.value = current + 1;
+    }
+};
+
+const decrementModalQty = () => {
+    const current = parseInt(modalQty.value) || 1;
+    if (current > 1) {
+        modalQty.value = current - 1;
+    }
+};
+
+const activeProductUnitPrice = computed(() => {
+    if (!activeProductForModal.value) return 0;
+    return priceMode.value === 'wholesale'
+        ? parseFloat(activeProductForModal.value.wholesale_price || 0)
+        : parseFloat(activeProductForModal.value.selling_price || 0);
+});
+
+const modalTotalAmount = computed(() => {
+    return (parseInt(modalQty.value) || 0) * activeProductUnitPrice.value;
+});
+
+const confirmAddFromModal = () => {
+    if (!activeProductForModal.value) return;
+    const qty = Math.max(1, parseInt(modalQty.value) || 1);
+    const product = activeProductForModal.value;
+
+    const existing = form.items.find(i => i.product_id === product.id && i.price_type === priceMode.value);
+    if (existing) {
+        existing.quantity = qty;
+    } else {
+        form.items.push({
+            product_id: product.id,
+            name: product.name,
+            unit_price: activeProductUnitPrice.value,
+            quantity: qty,
+            discount_amount: 0,
+            tax_percent: 0,
+            price_type: priceMode.value,
+            max_qty: product.track_stock ? product.current_stock : 999999
+        });
+    }
+    closeQuantityModal();
+};
+
 const showPaymentModal = ref(false);
 
 const form = useForm({
@@ -212,7 +303,7 @@ const processCheckout = () => {
                         <div 
                             v-for="product in filteredProducts" 
                             :key="product.id"
-                            @click="!product.track_stock || product.current_stock > 0 ? addToCart(product) : null"
+                            @click="!product.track_stock || product.current_stock > 0 ? openQuantityModal(product) : null"
                             role="button"
                             tabindex="0"
                             :class="[
@@ -322,16 +413,16 @@ const processCheckout = () => {
                         </div>
                     
                         <div v-else class="space-y-2 p-3">
-                        <div v-for="(item, index) in form.items" :key="index" class="flex flex-col p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-300 transition-colors">
+                        <div v-for="(item, index) in form.items" :key="index" @click="openQuantityModalFromItem(item)" class="flex flex-col p-4 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-400 hover:shadow-md transition-all cursor-pointer group">
                             <div class="flex justify-between items-start mb-3">
-                                <span class="font-bold text-slate-800 text-sm pr-4">{{ item.name }}</span>
-                                <button @click="removeItem(index)" class="text-slate-300 hover:text-rose-500 transition-colors">
+                                <span class="font-bold text-slate-800 text-sm pr-4 group-hover:text-amber-600 transition-colors">{{ item.name }}</span>
+                                <button @click.stop="removeItem(index)" class="text-slate-300 hover:text-rose-500 transition-colors p-1" title="Remove item">
                                     <Trash2 class="w-4 h-4" />
                                 </button>
                             </div>
                             
                             <div class="flex items-center justify-between mt-auto">
-                                <div class="flex items-center bg-slate-100 rounded-lg p-1">
+                                <div class="flex items-center bg-slate-100 rounded-lg p-1" @click.stop>
                                     <button @click="updateQuantity(item, -1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded-md transition-all"><Minus class="w-3 h-3" /></button>
                                     <FormattedNumberInput v-model="item.quantity" class="w-12 text-center text-sm border-none bg-transparent focus:ring-0 p-0 font-bold text-slate-800" />
                                     <button @click="updateQuantity(item, 1)" class="w-7 h-7 flex items-center justify-center text-slate-600 hover:bg-white hover:shadow-sm rounded-md transition-all"><Plus class="w-3 h-3" /></button>
@@ -454,6 +545,144 @@ const processCheckout = () => {
                         </button>
                         <button @click="showPaymentModal = false" type="button" class="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center rounded-xl border-2 border-slate-200 px-6 py-3.5 bg-white text-base font-bold text-slate-700 shadow-sm hover:bg-slate-50 hover:border-slate-300 focus:outline-none transition-all">
                             Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quantity Picker Modal (Matches design & colors) -->
+        <div v-if="showQuantityModal" class="fixed inset-0 z-[100] overflow-y-auto">
+            <div class="flex items-center justify-center min-h-screen px-4 p-4 text-center sm:block sm:p-0">
+                <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                    <div class="absolute inset-0 bg-slate-900/70 backdrop-blur-sm transition-opacity" @click="closeQuantityModal"></div>
+                </div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <div
+                    v-if="activeProductForModal"
+                    class="inline-block align-bottom bg-white rounded-3xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-md w-full border border-slate-100 p-6 space-y-5"
+                >
+                    <!-- Header -->
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3.5 min-w-0">
+                            <div class="w-14 h-14 rounded-2xl bg-amber-50/70 border border-amber-200/80 flex items-center justify-center p-2.5 shrink-0 shadow-xs">
+                                <img
+                                    v-if="activeProductForModal.image"
+                                    :src="activeProductForModal.image"
+                                    class="w-full h-full object-cover rounded-xl"
+                                    alt="Product"
+                                />
+                                <Package v-else class="w-7 h-7 text-amber-500" />
+                            </div>
+                            <div class="min-w-0">
+                                <h2 class="text-xl font-black text-slate-900 leading-snug uppercase truncate">
+                                    {{ activeProductForModal.name }}
+                                </h2>
+                                <span class="inline-flex items-center px-3 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-600 border border-emerald-200/80 mt-1">
+                                    {{ formatCurrency(activeProductUnitPrice) }}
+                                </span>
+                            </div>
+                        </div>
+                        <button
+                            @click="closeQuantityModal"
+                            class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 flex items-center justify-center transition-colors shrink-0"
+                            title="Close"
+                        >
+                            <X class="w-5 h-5" />
+                        </button>
+                    </div>
+
+                    <!-- Quantity Stepper Box -->
+                    <div class="bg-slate-50/80 border border-slate-200/90 rounded-3xl p-5 text-center">
+                        <span class="text-[11px] font-black tracking-widest text-slate-400 uppercase mb-3 block">
+                            QUANTITY (IDADI)
+                        </span>
+                        <div class="flex items-center justify-center gap-4">
+                            <button
+                                type="button"
+                                @click="decrementModalQty"
+                                class="w-14 h-14 rounded-2xl bg-white border-2 border-slate-200 text-2xl font-bold text-slate-700 flex items-center justify-center hover:bg-slate-50 active:scale-95 transition-all shadow-xs"
+                            >
+                                <Minus class="w-6 h-6 stroke-[2.5]" />
+                            </button>
+                            <div class="border-2 border-amber-500 rounded-2xl w-36 h-16 flex items-center justify-center bg-white shadow-xs">
+                                <input
+                                    v-model.number="modalQty"
+                                    type="number"
+                                    min="1"
+                                    :max="activeProductForModal.track_stock ? activeProductForModal.current_stock : 999999"
+                                    class="w-full text-center text-3xl font-black text-slate-900 font-mono border-none focus:ring-0 p-0 bg-transparent"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                @click="incrementModalQty"
+                                class="w-14 h-14 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white text-2xl font-bold flex items-center justify-center active:scale-95 transition-all shadow-lg shadow-amber-500/25"
+                            >
+                                <Plus class="w-6 h-6 stroke-[2.5]" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Presets -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between text-[11px] font-black tracking-wider text-slate-400 uppercase px-1">
+                            <span>QUICK PRESETS</span>
+                            <span>ONE-TAP</span>
+                        </div>
+                        <div class="space-y-2">
+                            <div v-for="(row, rIdx) in quickPresets" :key="rIdx" class="grid grid-cols-6 gap-2">
+                                <button
+                                    v-for="preset in row"
+                                    :key="preset"
+                                    type="button"
+                                    @click="setPresetQty(preset)"
+                                    :class="[
+                                        'py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95',
+                                        modalQty === preset
+                                            ? 'bg-slate-900 text-white shadow-xs'
+                                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                                    ]"
+                                >
+                                    {{ preset }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Total Jumla Bar -->
+                    <div class="bg-slate-900 text-white rounded-2xl p-4 flex items-center justify-between shadow-md">
+                        <div>
+                            <span class="text-[10px] font-black tracking-wider text-slate-400 uppercase block">
+                                TOTAL (JUMLA)
+                            </span>
+                            <span class="text-xs text-slate-300 font-medium mt-0.5 block">
+                                {{ formatCurrency(activeProductUnitPrice) }} × {{ modalQty || 0 }}
+                            </span>
+                        </div>
+                        <span class="text-2xl font-black text-emerald-400 font-mono">
+                            {{ formatCurrency(modalTotalAmount) }}
+                        </span>
+                    </div>
+
+                    <!-- Actions Footer -->
+                    <div class="flex items-center gap-3 pt-1">
+                        <button
+                            type="button"
+                            @click="closeQuantityModal"
+                            class="px-6 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm uppercase tracking-wider transition-colors"
+                        >
+                            CANCEL
+                        </button>
+                        <button
+                            type="button"
+                            @click="confirmAddFromModal"
+                            class="flex-1 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-black text-sm uppercase tracking-wider shadow-lg shadow-amber-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            <CheckCircle class="w-5 h-5 stroke-[2.5]" />
+                            <span>ADD TO BILL</span>
                         </button>
                     </div>
                 </div>

@@ -9,7 +9,6 @@ use App\Services\SaleService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class SaleController extends Controller
@@ -58,7 +57,6 @@ class SaleController extends Controller
             $q->where('branch_id', $branchId);
         }])
             ->where('business_id', $businessId)
-            ->where('branch_id', request()->user()->active_branch_id)
             ->where('is_active', true)
             ->get(['id', 'name', 'selling_price', 'wholesale_price', 'sku', 'product_type', 'track_stock'])
             ->map(function ($product) {
@@ -90,7 +88,7 @@ class SaleController extends Controller
             'fulfillment_status' => 'nullable|string|in:pending,processing,ready,partial,fulfilled,delivered,returned,cancelled',
             'transaction_date' => 'required|date',
             'items' => 'required|array|min:1',
-                        'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.price_type' => 'nullable|string|in:retail,wholesale',
@@ -130,13 +128,13 @@ class SaleController extends Controller
         ]);
     }
 
-        public function edit(\App\Models\Sale $sale)
+    public function edit(Sale $sale)
     {
         if ($sale->business_id !== request()->user()->business_id) {
             abort(403);
         }
 
-        if (!in_array($sale->status, ['draft', 'on_hold', 'invoiced'])) {
+        if (! in_array($sale->status, ['draft', 'on_hold', 'invoiced'])) {
             abort(403, 'Only sales in draft, on hold, or invoiced status can be edited.');
         }
 
@@ -146,35 +144,35 @@ class SaleController extends Controller
         $sale->load(['items.product']);
 
         // Fetch products with their active stock for the current branch
-        $products = \App\Models\Product::with(['stock' => function ($q) use ($branchId) {
+        $products = Product::with(['stock' => function ($q) use ($branchId) {
             $q->where('branch_id', $branchId);
         }])
             ->where('business_id', $businessId)
-            ->where('branch_id', request()->user()->active_branch_id)
             ->where('is_active', true)
             ->get(['id', 'name', 'selling_price', 'wholesale_price', 'sku', 'product_type', 'track_stock'])
             ->map(function ($product) {
                 $stockItem = $product->stock->first();
                 $product->current_stock = $stockItem ? (float) $stockItem->quantity : 0;
+
                 return $product;
             });
 
-        $customers = \App\Models\Customer::where('business_id', $businessId)->get(['id', 'name', 'phone']);
+        $customers = Customer::where('business_id', $businessId)->get(['id', 'name', 'phone']);
 
-        return \Inertia\Inertia::render('Sales/Edit', [
+        return Inertia::render('Sales/Edit', [
             'sale' => $sale,
             'products' => $products,
             'customers' => $customers,
         ]);
     }
 
-    public function update(\Illuminate\Http\Request $request, \App\Models\Sale $sale)
+    public function update(Request $request, Sale $sale)
     {
         if ($sale->business_id !== request()->user()->business_id) {
             abort(403);
         }
 
-        if (!in_array($sale->status, ['draft', 'on_hold', 'invoiced'])) {
+        if (! in_array($sale->status, ['draft', 'on_hold', 'invoiced'])) {
             abort(403, 'Only sales in draft, on hold, or invoiced status can be edited.');
         }
 
@@ -186,7 +184,7 @@ class SaleController extends Controller
             'fulfillment_status' => 'nullable|string|in:pending,processing,ready,partial,fulfilled,delivered,returned,cancelled',
             'transaction_date' => 'required|date',
             'items' => 'required|array|min:1',
-                        'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.price_type' => 'nullable|string|in:retail,wholesale',
@@ -201,13 +199,14 @@ class SaleController extends Controller
         ]);
 
         try {
-            \Illuminate\Support\Facades\DB::beginTransaction();
+            DB::beginTransaction();
             $this->saleService->updateSale($sale, $validated);
-            \Illuminate\Support\Facades\DB::commit();
+            DB::commit();
 
             return redirect()->route('sales.show', $sale)->with('success', 'Sale updated successfully.');
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\DB::rollBack();
+            DB::rollBack();
+
             return redirect()->back()->with('error', 'Error updating sale: '.$e->getMessage());
         }
     }
