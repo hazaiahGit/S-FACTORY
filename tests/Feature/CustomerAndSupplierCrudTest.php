@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Branch;
 use App\Models\Business;
 use App\Models\Customer;
 use App\Models\Supplier;
@@ -124,5 +125,54 @@ class CustomerAndSupplierCrudTest extends TestCase
         $deleteResponse = $this->delete(route('suppliers.destroy', $supplier->id));
         $deleteResponse->assertRedirect(route('suppliers.index'));
         $this->assertNull(Supplier::find($supplier->id));
+    }
+
+    public function test_non_admin_only_sees_their_branch_and_cannot_access_other_branches(): void
+    {
+        $business = $this->createBusiness();
+        $branchA = Branch::create(['business_id' => $business->id, 'name' => 'Branch A', 'code' => 'BRA', 'is_active' => true]);
+        $branchB = Branch::create(['business_id' => $business->id, 'name' => 'Branch B', 'code' => 'BRB', 'is_active' => true]);
+
+        // Regular user assigned to Branch A
+        $userA = User::factory()->create([
+            'business_id' => $business->id,
+            'branch_id' => $branchA->id,
+        ]);
+
+        $this->actingAs($userA);
+
+        // 1. Tagging: Non-admin creating customer is tagged with Branch A even if requesting Branch B
+        $response = $this->post(route('customers.store'), [
+            'name' => 'Branch A Customer',
+            'branch_id' => $branchB->id, // Attempt to assign to Branch B
+        ]);
+        $response->assertRedirect(route('customers.index'));
+        $customerA = Customer::where('name', 'Branch A Customer')->first();
+        $this->assertEquals($branchA->id, $customerA->branch_id);
+
+        // Create a customer for Branch B directly
+        $customerB = Customer::create([
+            'business_id' => $business->id,
+            'branch_id' => $branchB->id,
+            'name' => 'Branch B Customer',
+            'is_active' => true,
+        ]);
+
+        // 2. Non-admin A should only see Customer A in index, not Customer B
+        $indexResponse = $this->get(route('customers.index'));
+        $indexResponse->assertOk();
+        $indexResponse->assertInertia(fn ($page) => $page
+            ->has('customers.data', 1)
+            ->where('customers.data.0.id', $customerA->id)
+        );
+
+        // 3. Non-admin A attempting to view/edit/delete Customer B must get 403 Forbidden
+        $this->get(route('customers.show', $customerB->id))->assertForbidden();
+        $this->get(route('customers.edit', $customerB->id))->assertForbidden();
+        $this->put(route('customers.update', $customerB->id), ['name' => 'Hacked'])->assertForbidden();
+        $this->delete(route('customers.destroy', $customerB->id))->assertForbidden();
+
+        // 4. Non-admin A cannot change active branch via endpoint
+        $this->post(route('active-branch.update'), ['branch_id' => $branchB->id])->assertForbidden();
     }
 }
