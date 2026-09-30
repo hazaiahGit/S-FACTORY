@@ -82,7 +82,10 @@ class StockTransferController extends Controller
             'auto_complete' => 'nullable|boolean',
         ]);
 
-        $fromBranchId = (int) ($validated['from_branch_id'] ?? $user->active_branch_id ?? $user->branch_id);
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin', 'Manager']);
+        $fromBranchId = $isAdmin
+            ? (int) ($validated['from_branch_id'] ?? $user->active_branch_id ?? $user->branch_id)
+            : (int) $user->branch_id;
         $toBranchId = (int) $validated['to_branch_id'];
 
         if ($fromBranchId === $toBranchId) {

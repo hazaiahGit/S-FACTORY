@@ -95,6 +95,7 @@ const submit = () => {
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Transfer From (Source Branch)</label>
                                 <select
+                                    v-if="isTenantAdmin"
                                     v-model="form.from_branch_id"
                                     class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-bold text-slate-900 bg-slate-50"
                                     required
@@ -102,6 +103,13 @@ const submit = () => {
                                     <option value="" disabled>-- Select Source Branch --</option>
                                     <option v-for="b in branches" :key="b.id" :value="b.id">{{ b.name }}</option>
                                 </select>
+                                <div
+                                    v-else
+                                    class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm font-bold text-slate-700 flex items-center"
+                                >
+                                    <MapPin class="w-4 h-4 text-amber-500 mr-2" />
+                                    <span>{{ branches.find(b => b.id == form.from_branch_id)?.name || $page.props.auth.branch?.name || 'Your Branch' }}</span>
+                                </div>
                             </div>
 
                             <!-- Destination Branch -->

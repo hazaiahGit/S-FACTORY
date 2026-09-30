@@ -20,11 +20,14 @@ class ExpenseController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
 
         $expenses = Expense::with(['category', 'user', 'branch'])
             ->where('business_id', $user->business_id)
-            ->when($user->active_branch_id, function ($q, $branchId) {
-                $q->where('branch_id', $branchId);
+            ->when(! $isAdmin, function ($q) use ($user) {
+                $q->where('branch_id', $user->branch_id);
+            }, function ($q) use ($user) {
+                $q->when($user->active_branch_id, fn ($sub, $bId) => $sub->where('branch_id', $bId));
             })
             ->when($request->search, function ($query, $search) {
                 $query->where('expense_number', 'like', "%{$search}%")
@@ -68,7 +71,7 @@ class ExpenseController extends Controller
 
         try {
             $validated['business_id'] = $user->business_id;
-            $validated['branch_id'] = $user->active_branch_id;
+            $validated['branch_id'] = $user->active_branch_id ?? $user->branch_id;
             $validated['user_id'] = $user->id;
             $validated['expense_number'] = $this->numberGenerator->generateExpenseNumber($user->business_id);
             $validated['status'] = 'approved';
@@ -87,6 +90,10 @@ class ExpenseController extends Controller
 
         if ($expense->business_id !== $user->business_id) {
             abort(403);
+        }
+
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $expense->branch_id && $expense->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to delete expense from another branch.');
         }
 
         try {

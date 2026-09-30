@@ -18,10 +18,12 @@ class ActiveBranchController extends Controller
             ],
         ]);
 
-        if ($user->isTenantAdmin()) {
-            $branchId = $request->filled('branch_id') ? (int) $request->branch_id : 'all';
-            session(['active_branch_id' => $branchId]);
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin'])) {
+            abort(403, 'Unauthorized. Only admins can switch active branches.');
         }
+
+        $branchId = $request->filled('branch_id') ? (int) $request->branch_id : 'all';
+        session(['active_branch_id' => $branchId]);
 
         return back();
     }

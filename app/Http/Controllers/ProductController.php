@@ -28,7 +28,11 @@ class ProductController extends Controller
         $brandId = $request->input('brand_id');
         $branchId = $request->input('branch_id');
 
-        $activeBranchId = $branchId ?? $request->user()->active_branch_id;
+        $user = $request->user();
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        $activeBranchId = $isAdmin
+            ? ($branchId ?? $user->active_branch_id)
+            : $user->branch_id;
 
         $products = Product::with([
             'category',
@@ -64,7 +68,7 @@ class ProductController extends Controller
 
         $categories = Category::where('business_id', $businessId)->get(['id', 'name']);
         $brands = Brand::where('business_id', $businessId)->get(['id', 'name']);
-        $branches = Branch::where('business_id', $businessId)->get(['id', 'name']);
+        $branches = $isAdmin ? Branch::where('business_id', $businessId)->get(['id', 'name']) : [];
 
         return Inertia::render('Products/Index', [
             'products' => $products,
@@ -175,11 +179,14 @@ class ProductController extends Controller
             $product = Product::create($validated);
 
             if ($openingStock > 0) {
-                $branchId = $request->user()->branch_id;
+                $user = $request->user();
+                $targetBranchId = ($user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']))
+                    ? ($user->active_branch_id ?? $user->branch_id ?? Branch::where('business_id', $businessId)->value('id'))
+                    : $user->branch_id;
 
                 Stock::create([
                     'business_id' => $businessId,
-                    'branch_id' => $branchId,
+                    'branch_id' => $targetBranchId,
                     'product_id' => $product->id,
                     'quantity' => $openingStock,
                     'avg_cost' => $costPerUnit,
@@ -188,7 +195,7 @@ class ProductController extends Controller
 
                 StockMovement::create([
                     'business_id' => $businessId,
-                    'branch_id' => $branchId,
+                    'branch_id' => $targetBranchId,
                     'product_id' => $product->id,
                     'user_id' => $request->user()->id,
                     'movement_type' => 'in',

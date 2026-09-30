@@ -35,7 +35,10 @@ class DashboardController extends Controller
         }
 
         $businessId = $user->business_id;
-        $branchId = $request->has('branch_id') ? $request->get('branch_id') : $user->active_branch_id;
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        $branchId = $isAdmin
+            ? ($request->has('branch_id') ? $request->get('branch_id') : $user->active_branch_id)
+            : $user->branch_id;
 
         // Date range from request or default to today
         $period = $request->get('period', 'today');
@@ -107,11 +110,11 @@ class DashboardController extends Controller
 
         // Outstanding debts
         $customerDebt = $user->canSeeCustomerDebt()
-            ? Customer::where('business_id', $businessId)->where('current_balance', '>', 0)->sum('current_balance')
+            ? Customer::where('business_id', $businessId)->when($branchId, fn ($q) => $q->where('branch_id', $branchId))->where('current_balance', '>', 0)->sum('current_balance')
             : null;
 
         $supplierDebt = $user->canSeeSupplierDebt()
-            ? Supplier::where('business_id', $businessId)->where('current_balance', '>', 0)->sum('current_balance')
+            ? Supplier::where('business_id', $businessId)->when($branchId, fn ($q) => $q->where('branch_id', $branchId))->where('current_balance', '>', 0)->sum('current_balance')
             : null;
 
         // Chart data - Sales trend (last 7 or 30 days depending on period)
@@ -175,10 +178,9 @@ class DashboardController extends Controller
                 'top_products' => $topProducts,
             ],
             'recent_sales' => $recentSales,
-            'branches' => Branch::where('business_id', $businessId)
-                ->where('is_active', true)
-                ->select('id', 'name', 'code')
-                ->get(),
+            'branches' => $isAdmin
+                ? Branch::where('business_id', $businessId)->where('is_active', true)->select('id', 'name', 'code')->get()
+                : [],
         ]);
     }
 

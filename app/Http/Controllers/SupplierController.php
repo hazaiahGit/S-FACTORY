@@ -145,12 +145,17 @@ class SupplierController extends Controller
         }
 
         $user = $request->user();
-        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $supplier->branch_id && $supplier->branch_id !== $user->branch_id) {
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        if (! $isAdmin && $supplier->branch_id && $supplier->branch_id !== $user->branch_id) {
             abort(403, 'Unauthorized to edit supplier from another branch.');
         }
 
+        $branches = $isAdmin ? Branch::where('business_id', $user->business_id)->get(['id', 'name']) : [];
+
         return Inertia::render('Suppliers/Edit', [
             'supplier' => $supplier,
+            'branches' => $branches,
+            'isAdmin' => $isAdmin,
         ]);
     }
 
@@ -161,12 +166,14 @@ class SupplierController extends Controller
         }
 
         $user = $request->user();
-        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $supplier->branch_id && $supplier->branch_id !== $user->branch_id) {
+        $isAdmin = $user->isTenantAdmin() || $user->hasRole(['Super Admin', 'Admin']);
+        if (! $isAdmin && $supplier->branch_id && $supplier->branch_id !== $user->branch_id) {
             abort(403, 'Unauthorized to update supplier from another branch.');
         }
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
             'email' => ['nullable', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:20'],
             'address' => ['nullable', 'string'],
@@ -177,6 +184,10 @@ class SupplierController extends Controller
             'credit_limit' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
         ]);
+
+        if (! $isAdmin) {
+            unset($validated['branch_id']);
+        }
 
         try {
             $supplier->update($validated);

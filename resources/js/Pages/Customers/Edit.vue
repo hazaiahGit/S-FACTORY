@@ -5,10 +5,16 @@ import { ArrowLeft, Save, User, MapPin } from '@lucide/vue';
 
 const props = defineProps({
     customer: Object,
+    branches: {
+        type: Array,
+        default: () => [],
+    },
+    isAdmin: Boolean,
 });
 
 const form = useForm({
     name: props.customer.name || '',
+    branch_id: props.customer.branch_id || '',
     customer_type: props.customer.customer_type || 'retail',
     phone: props.customer.phone || '',
     email: props.customer.email || '',
@@ -50,6 +56,15 @@ const submit = () => {
                                 <input v-model="form.name" type="text" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-bold" required />
                             </div>
                             
+                            <!-- Branch Assignment (Admin Only) -->
+                            <div v-if="isAdmin && branches.length > 0">
+                                <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Assigned Branch</label>
+                                <select v-model="form.branch_id" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-medium">
+                                    <option value="" disabled>-- Select Branch --</option>
+                                    <option v-for="b in branches" :key="b.id" :value="b.id">📍 {{ b.name }}</option>
+                                </select>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Customer Type</label>
                                 <select v-model="form.customer_type" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm">

@@ -3,8 +3,18 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { ArrowLeft, Save, Building, MapPin, Briefcase } from '@lucide/vue';
 
+const props = defineProps({
+    branches: {
+        type: Array,
+        default: () => [],
+    },
+    defaultBranchId: [Number, String],
+    isAdmin: Boolean,
+});
+
 const form = useForm({
     name: '',
+    branch_id: props.defaultBranchId || (props.branches?.[0]?.id ?? ''),
     contact_person: '',
     phone: '',
     email: '',
@@ -48,6 +58,14 @@ const submit = () => {
                                 <input v-model="form.name" type="text" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-bold" required />
                             </div>
                             
+                            <!-- Branch Assignment (Admin Only) -->
+                            <div v-if="isAdmin && branches.length > 0">
+                                <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Assigned Branch</label>
+                                <select v-model="form.branch_id" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm font-medium">
+                                    <option v-for="b in branches" :key="b.id" :value="b.id">📍 {{ b.name }}</option>
+                                </select>
+                            </div>
+
                             <div>
                                 <label class="block text-xs font-bold text-slate-600 mb-2 uppercase tracking-wider">Tax Number (TIN/VAT)</label>
                                 <input v-model="form.tax_number" type="text" class="block w-full border-slate-300 rounded-lg shadow-sm focus:ring-amber-500 focus:border-amber-500 sm:text-sm" />

@@ -52,8 +52,9 @@ class SaleController extends Controller
 
     public function create()
     {
-        $businessId = request()->user()->business_id;
-        $branchId = request()->user()->active_branch_id ?: (request()->user()->branch_id ?: Branch::where('business_id', $businessId)->value('id'));
+        $user = request()->user();
+        $businessId = $user->business_id;
+        $branchId = $user->active_branch_id ?: ($user->branch_id ?: Branch::where('business_id', $businessId)->value('id'));
 
         // Fetch products with their active stock for the current branch
         $products = Product::with(['stock' => function ($q) use ($branchId) {
@@ -69,7 +70,13 @@ class SaleController extends Controller
                 return $product;
             });
 
+        // Fetch customers according to user branch scoping
         $customers = Customer::where('business_id', $businessId)
+            ->when($branchId, function ($q, $bId) {
+                $q->where(function ($sub) use ($bId) {
+                    $sub->where('branch_id', $bId)->orWhereNull('branch_id');
+                });
+            })
             ->get(['id', 'name', 'phone', 'customer_type', 'current_balance']);
 
         return Inertia::render('Sales/Create', [
@@ -81,7 +88,8 @@ class SaleController extends Controller
 
     public function store(Request $request)
     {
-        $businessId = request()->user()->business_id;
+        $user = request()->user();
+        $businessId = $user->business_id;
 
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
@@ -103,6 +111,11 @@ class SaleController extends Controller
             'payments.*.reference' => 'nullable|string|max:100',
         ]);
 
+        // Non-admins can only record sales for their own branch
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin'])) {
+            $validated['branch_id'] = $user->branch_id;
+        }
+
         try {
             DB::beginTransaction();
 
@@ -120,8 +133,13 @@ class SaleController extends Controller
 
     public function show(Sale $sale)
     {
-        if ($sale->business_id !== request()->user()->business_id) {
+        $user = request()->user();
+        if ($sale->business_id !== $user->business_id) {
             abort(403);
+        }
+
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $sale->branch_id && $sale->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to view sale from another branch.');
         }
 
         $sale->load(['customer', 'items.product', 'payments']);
@@ -133,16 +151,21 @@ class SaleController extends Controller
 
     public function edit(Sale $sale)
     {
-        if ($sale->business_id !== request()->user()->business_id) {
+        $user = request()->user();
+        if ($sale->business_id !== $user->business_id) {
             abort(403);
+        }
+
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $sale->branch_id && $sale->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to edit sale from another branch.');
         }
 
         if (! in_array($sale->status, ['draft', 'on_hold', 'invoiced'])) {
             abort(403, 'Only sales in draft, on hold, or invoiced status can be edited.');
         }
 
-        $businessId = request()->user()->business_id;
-        $branchId = request()->user()->active_branch_id;
+        $businessId = $user->business_id;
+        $branchId = $user->active_branch_id ?? $user->branch_id;
 
         $sale->load(['items.product']);
 

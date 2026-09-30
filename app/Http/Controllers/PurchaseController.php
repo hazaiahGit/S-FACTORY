@@ -50,12 +50,19 @@ class PurchaseController extends Controller
 
     public function create()
     {
-        $businessId = request()->user()->business_id;
+        $user = request()->user();
+        $businessId = $user->business_id;
+        $branchId = $user->active_branch_id ?: ($user->branch_id ?: Branch::where('business_id', $businessId)->value('id'));
 
         $products = Product::where('business_id', $businessId)
             ->get(['id', 'name', 'cost_price', 'sku']);
 
         $suppliers = Supplier::where('business_id', $businessId)
+            ->when($branchId, function ($q, $bId) {
+                $q->where(function ($sub) use ($bId) {
+                    $sub->where('branch_id', $bId)->orWhereNull('branch_id');
+                });
+            })
             ->get(['id', 'name']);
 
         return Inertia::render('Purchases/Create', [
@@ -66,6 +73,8 @@ class PurchaseController extends Controller
 
     public function store(Request $request)
     {
+        $user = $request->user();
+
         $validated = $request->validate([
             'branch_id' => ['required', 'exists:branches,id'],
             'supplier_id' => ['nullable', 'exists:suppliers,id'],
@@ -84,6 +93,11 @@ class PurchaseController extends Controller
             'payments.*.reference' => ['nullable', 'string', 'max:100'],
         ]);
 
+        // Non-admins can only record purchases for their own branch
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin'])) {
+            $validated['branch_id'] = $user->branch_id;
+        }
+
         try {
             $purchase = $this->purchaseService->create($validated);
 
@@ -96,8 +110,13 @@ class PurchaseController extends Controller
 
     public function show(Purchase $purchase)
     {
-        if ($purchase->business_id !== request()->user()->business_id) {
+        $user = request()->user();
+        if ($purchase->business_id !== $user->business_id) {
             abort(403);
+        }
+
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $purchase->branch_id && $purchase->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to view purchase from another branch.');
         }
 
         $purchase->load(['supplier', 'items.product', 'payments']);
@@ -109,11 +128,16 @@ class PurchaseController extends Controller
 
     public function edit(Purchase $purchase)
     {
-        if ($purchase->business_id !== request()->user()->business_id) {
+        $user = request()->user();
+        if ($purchase->business_id !== $user->business_id) {
             abort(403);
         }
 
-        $businessId = request()->user()->business_id;
+        if (! $user->isTenantAdmin() && ! $user->hasRole(['Super Admin', 'Admin']) && $purchase->branch_id && $purchase->branch_id !== $user->branch_id) {
+            abort(403, 'Unauthorized to edit purchase from another branch.');
+        }
+
+        $businessId = $user->business_id;
 
         $purchase->load(['items.product']);
 
