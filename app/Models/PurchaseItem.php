@@ -28,7 +28,18 @@ class PurchaseItem extends Model
         'expiry_date' => 'date',
     ];
 
-    public function purchase() { return $this->belongsTo(Purchase::class); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function batch() { return $this->belongsTo(ProductBatch::class, 'batch_id'); }
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(ProductBatch::class, 'batch_id');
+    }
 }

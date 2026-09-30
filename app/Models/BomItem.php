@@ -21,7 +21,18 @@ class BomItem extends Model
         'is_optional' => 'boolean',
     ];
 
-    public function bom() { return $this->belongsTo(BillOfMaterial::class, 'bom_id'); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function unit() { return $this->belongsTo(Unit::class); }
+    public function bom()
+    {
+        return $this->belongsTo(BillOfMaterial::class, 'bom_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
 }

@@ -1,10 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up(): void {
+return new class extends Migration
+{
+    public function up(): void
+    {
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->foreignId('business_id')->constrained()->cascadeOnDelete();
@@ -42,5 +45,9 @@ return new class extends Migration {
             $table->index(['business_id', 'sale_type']);
         });
     }
-    public function down(): void { Schema::dropIfExists('sales'); }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('sales');
+    }
 };

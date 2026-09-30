@@ -4,16 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use App\Models\Business;
 
 class SettingsController extends Controller
 {
     public function index(Request $request)
     {
         $business = $request->user()->business;
-        
+
         return Inertia::render('Settings/Index', [
-            'business' => $business
+            'business' => $business,
         ]);
     }
 

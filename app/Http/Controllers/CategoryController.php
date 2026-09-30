@@ -74,7 +74,7 @@ class CategoryController extends Controller
         ]);
 
         $validated['business_id'] = $businessId;
-        $validated['slug'] = Str::slug($validated['name']) . '-' . Str::lower(Str::random(4));
+        $validated['slug'] = Str::slug($validated['name']).'-'.Str::lower(Str::random(4));
         $validated['is_active'] = $validated['is_active'] ?? true;
 
         Category::create($validated);
@@ -112,10 +112,11 @@ class CategoryController extends Controller
         abort_unless($category->business_id === $businessId, 403);
 
         $category->update([
-            'is_active' => !$category->is_active,
+            'is_active' => ! $category->is_active,
         ]);
 
         $status = $category->is_active ? 'activated' : 'deactivated';
+
         return redirect()->back()->with('success', "Category {$status} successfully.");
     }
 

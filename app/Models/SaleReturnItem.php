@@ -21,7 +21,18 @@ class SaleReturnItem extends Model
         'total_price' => 'decimal:2',
     ];
 
-    public function saleReturn() { return $this->belongsTo(SaleReturn::class, 'return_id'); }
-    public function saleItem() { return $this->belongsTo(SaleItem::class); }
-    public function product() { return $this->belongsTo(Product::class); }
+    public function saleReturn()
+    {
+        return $this->belongsTo(SaleReturn::class, 'return_id');
+    }
+
+    public function saleItem()
+    {
+        return $this->belongsTo(SaleItem::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

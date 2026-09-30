@@ -22,7 +22,10 @@ class ProductPrice extends Model
         'is_active' => 'boolean',
     ];
 
-    public function product() { return $this->belongsTo(Product::class); }
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function scopeActive($query)
     {

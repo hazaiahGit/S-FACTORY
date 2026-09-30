@@ -13,7 +13,18 @@ class ExpenseCategory extends Model
 
     protected $casts = ['is_active' => 'boolean'];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function expenses() { return $this->hasMany(Expense::class); }
-    public function scopeActive($query) { return $query->where('is_active', true); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
 }

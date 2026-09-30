@@ -21,10 +21,18 @@ class AuditLog extends Model
     ];
 
     public $timestamps = true;
+
     const UPDATED_AT = null; // Audit logs are append-only
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function user() { return $this->belongsTo(User::class); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function subject()
     {
@@ -42,6 +50,7 @@ class AuditLog extends Model
         ?string $reason = null
     ): self {
         $user = auth()->user();
+
         return self::create([
             'business_id' => $businessId ?? $user?->business_id,
             'user_id' => $user?->id,

@@ -12,7 +12,7 @@ class PackageController extends Controller
     public function index()
     {
         return Inertia::render('System/Packages/Index', [
-            'packages' => SubscriptionPackage::latest()->get()
+            'packages' => SubscriptionPackage::latest()->get(),
         ]);
     }
 
@@ -29,6 +29,7 @@ class PackageController extends Controller
         ]);
 
         SubscriptionPackage::create($validated);
+
         return redirect()->back()->with('success', 'Package created successfully.');
     }
 
@@ -45,6 +46,7 @@ class PackageController extends Controller
         ]);
 
         $package->update($validated);
+
         return redirect()->back()->with('success', 'Package updated successfully.');
     }
 
@@ -53,8 +55,9 @@ class PackageController extends Controller
         if ($package->businesses()->exists()) {
             return redirect()->back()->with('error', 'Cannot delete package that is assigned to tenants.');
         }
-        
+
         $package->delete();
+
         return redirect()->back()->with('success', 'Package deleted successfully.');
     }
 }

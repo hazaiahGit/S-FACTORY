@@ -20,8 +20,23 @@ class PurchasePayment extends Model
         'payment_date' => 'date',
     ];
 
-    public function purchase() { return $this->belongsTo(Purchase::class); }
-    public function business() { return $this->belongsTo(Business::class); }
-    public function supplier() { return $this->belongsTo(Supplier::class); }
-    public function user() { return $this->belongsTo(User::class); }
+    public function purchase()
+    {
+        return $this->belongsTo(Purchase::class);
+    }
+
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

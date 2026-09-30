@@ -2,15 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Target;
 use App\Models\Branch;
-use App\Models\User;
-use App\Models\Product;
 use App\Models\Category;
+use App\Models\Product;
+use App\Models\Target;
+use App\Models\User;
 use App\Services\TargetService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Carbon\Carbon;
 
 class TargetController extends Controller
 {
@@ -22,12 +21,15 @@ class TargetController extends Controller
 
         $targets = Target::with(['branch', 'user', 'product', 'category', 'customer'])
             ->where('business_id', $businessId)
-            ->where(function($q) { $q->where('branch_id', request()->user()->active_branch_id)->orWhereNull('branch_id'); })
+            ->where(function ($q) {
+                $q->where('branch_id', request()->user()->active_branch_id)->orWhereNull('branch_id');
+            })
             ->latest()
             ->get()
             ->map(function ($target) {
                 $progress = $this->targetService->calculateProgress($target);
                 $target->progress = $progress;
+
                 return $target;
             });
 
@@ -58,14 +60,14 @@ class TargetController extends Controller
             'period_type' => 'required|string|in:daily,weekly,monthly,quarterly,yearly,custom',
             'start_date' => 'required|date',
             'end_date' => 'required|date|after_or_equal:start_date',
-            
+
             // Scope
             'branch_id' => 'nullable|exists:branches,id',
             'user_id' => 'nullable|exists:users,id',
             'product_id' => 'nullable|exists:products,id',
             'category_id' => 'nullable|exists:categories,id',
             'customer_id' => 'nullable|exists:customers,id',
-            
+
             'description' => 'nullable|string',
         ]);
 
@@ -132,6 +134,7 @@ class TargetController extends Controller
     {
         abort_if($target->business_id !== $request->user()->business_id, 403);
         $target->delete();
+
         return redirect()->route('targets.index')->with('success', 'Target removed.');
     }
 }

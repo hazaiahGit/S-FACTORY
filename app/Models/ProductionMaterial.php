@@ -21,6 +21,13 @@ class ProductionMaterial extends Model
         'total_cost' => 'decimal:2',
     ];
 
-    public function productionOrder() { return $this->belongsTo(ProductionOrder::class); }
-    public function product() { return $this->belongsTo(Product::class); }
+    public function productionOrder()
+    {
+        return $this->belongsTo(ProductionOrder::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 }

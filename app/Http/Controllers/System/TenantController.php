@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Business;
 use App\Models\SubscriptionPackage;
 use App\Models\User;
+use App\Services\TenantCatalogSeederService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -90,7 +91,7 @@ class TenantController extends Controller
             $user->assignRole('Super Admin');
 
             // Provision Default Catalog Taxonomies (Categories, Units, Product Types)
-            \App\Services\TenantCatalogSeederService::seedTenantDefaults($tenant);
+            TenantCatalogSeederService::seedTenantDefaults($tenant);
         });
 
         return redirect()->back()->with('success', 'Tenant and Admin created successfully.');

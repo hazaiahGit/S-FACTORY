@@ -32,7 +32,7 @@ class ApprovalController extends Controller
         return Inertia::render('Approvals/Index', [
             'approvals' => $approvals,
             'counts' => $counts,
-            'filters' => ['status' => $status]
+            'filters' => ['status' => $status],
         ]);
     }
 
@@ -64,7 +64,7 @@ class ApprovalController extends Controller
         abort_if($approvalRequest->status !== 'pending', 400, 'Request is not pending.');
 
         $request->validate([
-            'rejection_reason' => 'required|string|max:500'
+            'rejection_reason' => 'required|string|max:500',
         ]);
 
         $approvalRequest->update([

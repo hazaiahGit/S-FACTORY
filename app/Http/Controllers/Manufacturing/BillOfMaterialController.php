@@ -4,15 +4,16 @@ namespace App\Http\Controllers\Manufacturing;
 
 use App\Http\Controllers\Controller;
 use App\Models\BillOfMaterial;
-use App\Models\Product;
-use App\Models\Unit;
+use App\Models\BomItem;
 use App\Models\Category;
+use App\Models\Product;
+use App\Models\Stock;
+use App\Models\Unit;
+use App\Services\StockService;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use App\Models\BomItem;
-use App\Models\Stock;
+use Inertia\Inertia;
 
 class BillOfMaterialController extends Controller
 {
@@ -24,9 +25,9 @@ class BillOfMaterialController extends Controller
             ->where('business_id', $businessId)
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
-                      ->orWhereHas('product', function($q) use ($search) {
-                          $q->where('name', 'like', "%{$search}%");
-                      });
+                    ->orWhereHas('product', function ($q) use ($search) {
+                        $q->where('name', 'like', "%{$search}%");
+                    });
             })
             ->latest()
             ->paginate(15)
@@ -34,27 +35,27 @@ class BillOfMaterialController extends Controller
 
         return Inertia::render('Manufacturing/BOM/Index', [
             'boms' => $boms,
-            'filters' => $request->only('search')
+            'filters' => $request->only('search'),
         ]);
     }
 
     public function create(Request $request)
     {
         $businessId = $request->user()->business_id;
-        
+
         $products = Product::where('business_id', $businessId)
             ->where('is_active', true)
             ->whereIn('product_type', ['manufactured', 'both'])
             ->select('id', 'name', 'sku')
             ->get();
-            
+
         $materials = Product::where('business_id', $businessId)
             ->where('is_active', true)
             ->whereIn('product_type', ['purchased', 'both'])
             ->select('id', 'name', 'sku', 'cost_price', 'unit_id')
             ->with('unit:id,name,abbreviation')
             ->get();
-            
+
         $units = Unit::where('business_id', $businessId)->get();
         $categories = Category::where('business_id', $businessId)->get(['id', 'name']);
 
@@ -90,7 +91,7 @@ class BillOfMaterialController extends Controller
         ]);
 
         return DB::transaction(function () use ($validated, $businessId, $branchId) {
-            
+
             // Calculate Cost Price
             $totalCost = 0;
             foreach ($validated['items'] as $item) {
@@ -101,7 +102,7 @@ class BillOfMaterialController extends Controller
             $costPerUnit = round($totalCost / $validated['expected_output'], 4);
 
             // Generate SKU for new product
-            $sku = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $validated['product_name']), 0, 3)) . '-' . mt_rand(1000, 9999);
+            $sku = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $validated['product_name']), 0, 3)).'-'.mt_rand(1000, 9999);
 
             // Create Product
             $product = Product::create([
@@ -134,7 +135,7 @@ class BillOfMaterialController extends Controller
             $bom = BillOfMaterial::create([
                 'business_id' => $businessId,
                 'product_id' => $product->id,
-                'name' => $validated['product_name'] . ' Recipe',
+                'name' => $validated['product_name'].' Recipe',
                 'version' => '1.0',
                 'expected_output' => $validated['expected_output'],
                 'output_unit_id' => $validated['output_unit_id'],
@@ -149,7 +150,7 @@ class BillOfMaterialController extends Controller
                 $cost = $item['unit_cost'] ?? 0;
                 $total = $qty * $cost;
 
-                $fullDescription = trim(($item['name'] ?? '') . ' - ' . ($item['description'] ?? ''), ' -');
+                $fullDescription = trim(($item['name'] ?? '').' - '.($item['description'] ?? ''), ' -');
 
                 BomItem::create([
                     'bom_id' => $bom->id,
@@ -162,10 +163,10 @@ class BillOfMaterialController extends Controller
                     'total_cost' => $total,
                     'is_optional' => false,
                 ]);
-                
+
                 // Deduct materials from stock if they are actual products
-                if (!empty($item['product_id']) && $item['item_type'] === 'material') {
-                    app(\App\Services\StockService::class)->decrease(
+                if (! empty($item['product_id']) && $item['item_type'] === 'material') {
+                    app(StockService::class)->decrease(
                         $branchId,
                         $item['product_id'],
                         $qty,
@@ -183,17 +184,22 @@ class BillOfMaterialController extends Controller
             return redirect()->route('products.index')->with('success', 'Product registered, stock created, and BOM saved successfully.');
         });
     }
-    
+
     // Stub out other methods just in case they are used
-    public function show(BillOfMaterial $bom) {
+    public function show(BillOfMaterial $bom)
+    {
         $bom->load(['product', 'outputUnit', 'items.product', 'items.unit']);
+
         return Inertia::render('Manufacturing/BOM/Show', ['bom' => $bom]);
     }
-            public function edit(BillOfMaterial $bom)
+
+    public function edit(BillOfMaterial $bom)
     {
         $businessId = request()->user()->business_id;
-        if ($bom->business_id !== $businessId) abort(403);
-        
+        if ($bom->business_id !== $businessId) {
+            abort(403);
+        }
+
         $bom->load('items');
 
         $products = Product::where('business_id', $businessId)->active()->get(['id', 'name', 'sku', 'cost_price', 'unit_id']);
@@ -203,14 +209,16 @@ class BillOfMaterialController extends Controller
             'bom' => $bom,
             'products' => $products, // All products for output
             'materials' => $products, // Same for now
-            'units' => $units
+            'units' => $units,
         ]);
     }
-    
+
     public function update(Request $request, BillOfMaterial $bom)
     {
         $businessId = request()->user()->business_id;
-        if ($bom->business_id !== $businessId) abort(403);
+        if ($bom->business_id !== $businessId) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:200',
@@ -265,22 +273,23 @@ class BillOfMaterialController extends Controller
             $costPerUnit = $totalCost / max($bom->expected_output, 0.01);
 
             // Update the product's base cost_price
-            \App\Models\Product::where('id', $validated['product_id'])
+            Product::where('id', $validated['product_id'])
                 ->update(['cost_price' => $costPerUnit]);
 
-            // Force update all existing stock records to reflect the new recipe cost 
+            // Force update all existing stock records to reflect the new recipe cost
             // since the user wants the inventory value strictly tied to the BOM cost.
-            $stocks = \App\Models\Stock::where('product_id', $validated['product_id'])->get();
+            $stocks = Stock::where('product_id', $validated['product_id'])->get();
             foreach ($stocks as $stk) {
                 $stk->update([
                     'avg_cost' => $costPerUnit,
-                    'stock_value' => round((float)$stk->quantity * $costPerUnit, 2)
+                    'stock_value' => round((float) $stk->quantity * $costPerUnit, 2),
                 ]);
             }
         });
 
         return redirect()->route('bom.index')->with('success', 'Recipe updated successfully.');
     }
+
     public function destroy(BillOfMaterial $bom)
     {
         $businessId = request()->user()->business_id;

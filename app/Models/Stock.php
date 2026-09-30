@@ -25,13 +25,24 @@ class Stock extends Model
         'stock_value' => 'decimal:2',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function product() { return $this->belongsTo(Product::class); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
     public function getAvailableQuantityAttribute(): float
     {
-        return max(0, (float)$this->quantity - (float)$this->reserved_quantity);
+        return max(0, (float) $this->quantity - (float) $this->reserved_quantity);
     }
 
     public function scopeForBranch($query, int $branchId)

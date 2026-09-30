@@ -31,7 +31,18 @@ class SaleItem extends Model
         'line_profit' => 'decimal:2',
     ];
 
-    public function sale() { return $this->belongsTo(Sale::class); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function batch() { return $this->belongsTo(ProductBatch::class, 'batch_id'); }
+    public function sale()
+    {
+        return $this->belongsTo(Sale::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(ProductBatch::class, 'batch_id');
+    }
 }

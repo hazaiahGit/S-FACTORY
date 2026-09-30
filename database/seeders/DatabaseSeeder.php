@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Branch;
 use App\Models\Business;
 use App\Models\User;
+use App\Services\TenantCatalogSeederService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
@@ -68,7 +69,7 @@ class DatabaseSeeder extends Seeder
         $cashier->assignRole($cashierRole);
 
         // Seed tenant catalog taxonomies
-        \App\Services\TenantCatalogSeederService::seedTenantDefaults($business);
+        TenantCatalogSeederService::seedTenantDefaults($business);
 
         echo "✅ Fresh System Seeded Successfully! (Superadmin, Tenant, and Demo accounts ready)\n";
     }

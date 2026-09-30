@@ -2,15 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Branch;
+use App\Models\User;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
-use Illuminate\Validation\Rules;
-use Illuminate\Support\Facades\Hash;
-use Spatie\Permission\Models\Role;
-use Spatie\Permission\Models\Permission;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules;
+use Inertia\Inertia;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
@@ -22,8 +22,8 @@ class UserController extends Controller
             ->where('business_id', $businessId)
             ->when($request->search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('email', 'like', "%{$search}%")
-                      ->orWhere('phone', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%");
             })
             ->latest()
             ->paginate(15)
@@ -31,14 +31,14 @@ class UserController extends Controller
 
         return Inertia::render('Users/Index', [
             'users' => $users,
-            'filters' => $request->only(['search'])
+            'filters' => $request->only(['search']),
         ]);
     }
 
     public function create(Request $request)
     {
         $businessId = $request->user()->business_id;
-        
+
         $branches = Branch::where('business_id', $businessId)->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
         $permissions = Permission::all(['id', 'name']);
@@ -46,7 +46,7 @@ class UserController extends Controller
         return Inertia::render('Users/Create', [
             'branches' => $branches,
             'roles' => $roles,
-            'permissions' => ['System Permissions' => $permissions]
+            'permissions' => ['System Permissions' => $permissions],
         ]);
     }
 
@@ -62,7 +62,7 @@ class UserController extends Controller
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|exists:roles,name',
             'permissions' => 'nullable|array',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
         ]);
 
         DB::transaction(function () use ($validated, $businessId) {
@@ -77,8 +77,8 @@ class UserController extends Controller
             ]);
 
             $user->assignRole($validated['role']);
-            
-            if (!empty($validated['permissions'])) {
+
+            if (! empty($validated['permissions'])) {
                 $user->givePermissionTo($validated['permissions']);
             }
         });
@@ -89,7 +89,7 @@ class UserController extends Controller
     public function edit(Request $request, User $user)
     {
         $businessId = $request->user()->business_id;
-        
+
         // Ensure user belongs to this business
         if ($user->business_id !== $businessId && $user->id !== 1) {
             abort(403);
@@ -98,21 +98,21 @@ class UserController extends Controller
         $branches = Branch::where('business_id', $businessId)->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
         $permissions = Permission::all(['id', 'name']);
-        
+
         $user->load('roles', 'permissions');
 
         return Inertia::render('Users/Edit', [
             'user' => $user,
             'branches' => $branches,
             'roles' => $roles,
-            'permissions' => ['System Permissions' => $permissions]
+            'permissions' => ['System Permissions' => $permissions],
         ]);
     }
 
     public function update(Request $request, User $user)
     {
         $businessId = $request->user()->business_id;
-        
+
         if ($user->business_id !== $businessId && $user->id !== 1) {
             abort(403);
         }
@@ -125,7 +125,7 @@ class UserController extends Controller
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
             'role' => 'required|exists:roles,name',
             'permissions' => 'nullable|array',
-            'is_active' => 'boolean'
+            'is_active' => 'boolean',
         ]);
 
         DB::transaction(function () use ($validated, $user) {
@@ -134,16 +134,16 @@ class UserController extends Controller
             $user->phone = $validated['phone'] ?? null;
             $user->branch_id = $validated['branch_id'];
             $user->is_active = $validated['is_active'] ?? true;
-            
-            if (!empty($validated['password'])) {
+
+            if (! empty($validated['password'])) {
                 $user->password = Hash::make($validated['password']);
             }
-            
+
             $user->save();
 
             // Sync roles and permissions
             $user->syncRoles([$validated['role']]);
-            
+
             if (isset($validated['permissions'])) {
                 $user->syncPermissions($validated['permissions']);
             }
@@ -152,4 +152,3 @@ class UserController extends Controller
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }
 }
-

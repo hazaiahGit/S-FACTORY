@@ -3,14 +3,15 @@
 namespace App\Http\Controllers\Manufacturing;
 
 use App\Http\Controllers\Controller;
-use App\Models\ProductionOrder;
 use App\Models\BillOfMaterial;
+use App\Models\Branch;
 use App\Models\ProductionMaterial;
+use App\Models\ProductionOrder;
 use App\Services\NumberGeneratorService;
 use App\Services\StockService;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
+use Inertia\Inertia;
 
 class ProductionOrderController extends Controller
 {
@@ -34,25 +35,25 @@ class ProductionOrderController extends Controller
 
         return Inertia::render('Manufacturing/Production/Index', [
             'orders' => $orders,
-            'filters' => $request->only('status')
+            'filters' => $request->only('status'),
         ]);
     }
 
     public function create(Request $request)
     {
         $businessId = $request->user()->business_id;
-        
+
         $boms = BillOfMaterial::with('product')
             ->where('business_id', $businessId)
             ->where('is_active', true)
             ->get();
-            
-        $branches = \App\Models\Branch::where('business_id', $businessId)->get();
+
+        $branches = Branch::where('business_id', $businessId)->get();
 
         return Inertia::render('Manufacturing/Production/Create', [
             'boms' => $boms,
             'branches' => $branches,
-            'defaultBranch' => $request->user()->branch_id
+            'defaultBranch' => $request->user()->branch_id,
         ]);
     }
 
@@ -70,10 +71,10 @@ class ProductionOrderController extends Controller
 
         return DB::transaction(function () use ($validated, $businessId, $request) {
             $bom = BillOfMaterial::with('items')->findOrFail($validated['bom_id']);
-            
+
             // Calculate scale factor
             $scale = $validated['planned_quantity'] / $bom->expected_output;
-            
+
             $order = ProductionOrder::create([
                 'business_id' => $businessId,
                 'branch_id' => $validated['branch_id'],
@@ -98,7 +99,7 @@ class ProductionOrderController extends Controller
             foreach ($bom->items as $item) {
                 $qty = $item->quantity * $scale;
                 $totalCost = $qty * $item->unit_cost;
-                
+
                 ProductionMaterial::create([
                     'production_order_id' => $order->id,
                     'product_id' => $item->product_id,
@@ -108,12 +109,18 @@ class ProductionOrderController extends Controller
                     'unit_cost' => $item->unit_cost,
                     'total_cost' => $totalCost,
                 ]);
-                
-                if ($item->item_type === 'material') $matCost += $totalCost;
-                if ($item->item_type === 'labour') $labCost += $totalCost;
-                if ($item->item_type === 'overhead') $ovhCost += $totalCost;
+
+                if ($item->item_type === 'material') {
+                    $matCost += $totalCost;
+                }
+                if ($item->item_type === 'labour') {
+                    $labCost += $totalCost;
+                }
+                if ($item->item_type === 'overhead') {
+                    $ovhCost += $totalCost;
+                }
             }
-            
+
             $order->update([
                 'total_material_cost' => $matCost,
                 'total_labour_cost' => $labCost,
@@ -129,38 +136,38 @@ class ProductionOrderController extends Controller
     public function show(Request $request, ProductionOrder $productionOrder)
     {
         abort_if($productionOrder->business_id !== $request->user()->business_id, 403);
-        
+
         $productionOrder->load(['product', 'bom', 'materials.product']);
 
         return Inertia::render('Manufacturing/Production/Show', [
-            'order' => $productionOrder
+            'order' => $productionOrder,
         ]);
     }
-    
+
     public function start(Request $request, ProductionOrder $productionOrder)
     {
         abort_if($productionOrder->business_id !== $request->user()->business_id, 403);
-        
+
         if ($productionOrder->status !== 'planned') {
             return back()->with('error', 'Only planned orders can be started.');
         }
-        
+
         $productionOrder->update([
             'status' => 'in_progress',
-            'start_date' => today()
+            'start_date' => today(),
         ]);
-        
+
         return back()->with('success', 'Production started.');
     }
-    
+
     public function complete(Request $request, ProductionOrder $productionOrder)
     {
         abort_if($productionOrder->business_id !== $request->user()->business_id, 403);
-        
+
         if ($productionOrder->status !== 'in_progress') {
             return back()->with('error', 'Only in-progress orders can be completed.');
         }
-        
+
         $validated = $request->validate([
             'actual_quantity' => 'required|numeric|min:0.001',
             'waste_quantity' => 'nullable|numeric|min:0',
@@ -168,27 +175,29 @@ class ProductionOrderController extends Controller
             'materials.*.id' => 'required|exists:production_materials,id',
             'materials.*.actual_quantity' => 'required|numeric|min:0',
         ]);
-        
+
         return DB::transaction(function () use ($validated, $productionOrder) {
             $matCost = 0;
             $labCost = 0;
             $ovhCost = 0;
-            
+
             foreach ($validated['materials'] as $matData) {
                 $material = ProductionMaterial::find($matData['id']);
-                if ($material->production_order_id !== $productionOrder->id) continue;
-                
+                if ($material->production_order_id !== $productionOrder->id) {
+                    continue;
+                }
+
                 $actualQty = (float) $matData['actual_quantity'];
                 $actualCost = $actualQty * $material->unit_cost;
-                
+
                 $material->update([
                     'actual_quantity' => $actualQty,
-                    'total_cost' => $actualCost
+                    'total_cost' => $actualCost,
                 ]);
-                
+
                 if ($material->item_type === 'material') {
                     $matCost += $actualCost;
-                    
+
                     // Deduct stock for raw materials
                     if ($material->product_id) {
                         $this->stockService->decrease(
@@ -202,12 +211,16 @@ class ProductionOrderController extends Controller
                         );
                     }
                 }
-                if ($material->item_type === 'labour') $labCost += $actualCost;
-                if ($material->item_type === 'overhead') $ovhCost += $actualCost;
+                if ($material->item_type === 'labour') {
+                    $labCost += $actualCost;
+                }
+                if ($material->item_type === 'overhead') {
+                    $ovhCost += $actualCost;
+                }
             }
-            
+
             $totalCost = $matCost + $labCost + $ovhCost;
-            
+
             $productionOrder->update([
                 'status' => 'completed',
                 'completion_date' => today(),
@@ -219,7 +232,7 @@ class ProductionOrderController extends Controller
                 'total_production_cost' => $totalCost,
                 'unit_cost' => $totalCost / $validated['actual_quantity'],
             ]);
-            
+
             // Receive finished goods into stock
             $this->stockService->increase(
                 $productionOrder->branch_id,
@@ -231,7 +244,7 @@ class ProductionOrderController extends Controller
                 $productionOrder->id,
                 $productionOrder->production_number
             );
-            
+
             return back()->with('success', 'Production completed and stock updated.');
         });
     }

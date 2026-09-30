@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Supplier extends Model
 {
@@ -19,11 +19,11 @@ class Supplier extends Model
     ];
 
     protected $casts = [
-        'credit_limit'    => 'decimal:2',
+        'credit_limit' => 'decimal:2',
         'opening_balance' => 'decimal:2',
         'current_balance' => 'decimal:2',
-        'credit_days'     => 'integer',
-        'is_active'       => 'boolean',
+        'credit_days' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     // ─── Relationships ────────────────────────────────────────────────────────

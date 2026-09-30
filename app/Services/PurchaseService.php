@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
+use App\Models\AuditLog;
+use App\Models\ProductBatch;
 use App\Models\Purchase;
 use App\Models\PurchaseItem;
 use App\Models\PurchasePayment;
-use App\Models\ProductBatch;
 use App\Models\Supplier;
-use App\Models\AuditLog;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseService
@@ -49,7 +49,7 @@ class PurchaseService
             ]);
 
             $subtotal = 0;
-            $totalLandedCost = (float)($data['transport_cost'] ?? 0) + (float)($data['other_costs'] ?? 0);
+            $totalLandedCost = (float) ($data['transport_cost'] ?? 0) + (float) ($data['other_costs'] ?? 0);
             $totalItemCost = 0;
 
             // First pass: calculate item totals for landed cost distribution
@@ -124,16 +124,18 @@ class PurchaseService
                 );
             }
 
-            $totalAmount = $subtotal + (float)($data['tax_amount'] ?? 0)
-                + (float)($data['transport_cost'] ?? 0)
-                + (float)($data['other_costs'] ?? 0)
-                - (float)($data['discount_amount'] ?? 0);
+            $totalAmount = $subtotal + (float) ($data['tax_amount'] ?? 0)
+                + (float) ($data['transport_cost'] ?? 0)
+                + (float) ($data['other_costs'] ?? 0)
+                - (float) ($data['discount_amount'] ?? 0);
 
             // Process payments
             $paidAmount = 0;
             foreach ($data['payments'] ?? [] as $paymentData) {
                 $amount = (float) $paymentData['amount'];
-                if ($amount <= 0) continue;
+                if ($amount <= 0) {
+                    continue;
+                }
 
                 PurchasePayment::create([
                     'purchase_id' => $purchase->id,

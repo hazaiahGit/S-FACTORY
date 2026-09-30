@@ -1,10 +1,13 @@
 <?php
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    public function up(): void {
+return new class extends Migration
+{
+    public function up(): void
+    {
         // Create system notifications table (Laravel default)
         // Laravel's built-in notification table is already created
         // This adds business settings
@@ -72,7 +75,8 @@ return new class extends Migration {
         });
     }
 
-    public function down(): void {
+    public function down(): void
+    {
         Schema::dropIfExists('customer_payments');
         Schema::dropIfExists('cashier_shifts');
         Schema::dropIfExists('payment_methods');

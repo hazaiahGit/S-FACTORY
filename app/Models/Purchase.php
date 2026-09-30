@@ -34,18 +34,58 @@ class Purchase extends Model
         'received_date' => 'date',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function supplier() { return $this->belongsTo(Supplier::class); }
-    public function user() { return $this->belongsTo(User::class); }
-    public function approvedBy() { return $this->belongsTo(User::class, 'approved_by'); }
-    public function items() { return $this->hasMany(PurchaseItem::class); }
-    public function payments() { return $this->hasMany(PurchasePayment::class); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 
-    public function scopePaid($query) { return $query->where('payment_status', 'paid'); }
-    public function scopeUnpaid($query) { return $query->where('payment_status', 'unpaid'); }
-    public function scopeByBranch($query, int $branchId) { return $query->where('branch_id', $branchId); }
-    public function scopeForPeriod($query, $from, $to) {
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function items()
+    {
+        return $this->hasMany(PurchaseItem::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(PurchasePayment::class);
+    }
+
+    public function scopePaid($query)
+    {
+        return $query->where('payment_status', 'paid');
+    }
+
+    public function scopeUnpaid($query)
+    {
+        return $query->where('payment_status', 'unpaid');
+    }
+
+    public function scopeByBranch($query, int $branchId)
+    {
+        return $query->where('branch_id', $branchId);
+    }
+
+    public function scopeForPeriod($query, $from, $to)
+    {
         return $query->whereBetween('transaction_date', [$from, $to]);
     }
 }

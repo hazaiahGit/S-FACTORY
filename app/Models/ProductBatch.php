@@ -25,10 +25,25 @@ class ProductBatch extends Model
         'expiry_date' => 'date',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function supplier() { return $this->belongsTo(Supplier::class); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function supplier()
+    {
+        return $this->belongsTo(Supplier::class);
+    }
 
     public function scopeActive($query)
     {

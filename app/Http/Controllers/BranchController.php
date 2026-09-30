@@ -11,13 +11,13 @@ class BranchController extends Controller
     public function index(Request $request)
     {
         $businessId = $request->user()->business_id;
-        
+
         $branches = Branch::where('business_id', $businessId)
             ->latest()
             ->get();
-            
+
         return Inertia::render('Branches/Index', [
-            'branches' => $branches
+            'branches' => $branches,
         ]);
     }
 
@@ -43,7 +43,9 @@ class BranchController extends Controller
 
     public function update(Request $request, Branch $branch)
     {
-        if ($branch->business_id !== $request->user()->business_id) abort(403);
+        if ($branch->business_id !== $request->user()->business_id) {
+            abort(403);
+        }
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -63,17 +65,20 @@ class BranchController extends Controller
 
     public function destroy(Branch $branch, Request $request)
     {
-        if ($branch->business_id !== $request->user()->business_id) abort(403);
-        
+        if ($branch->business_id !== $request->user()->business_id) {
+            abort(403);
+        }
+
         if ($branch->is_main) {
             return redirect()->back()->with('error', 'Cannot delete the main branch.');
         }
-        
+
         if ($branch->sales()->exists() || $branch->purchases()->exists()) {
             return redirect()->back()->with('error', 'Cannot delete branch because it has associated transactions.');
         }
 
         $branch->delete();
+
         return redirect()->back()->with('success', 'Branch deleted successfully.');
     }
 }

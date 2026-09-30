@@ -25,11 +25,30 @@ class StockMovement extends Model
         'transaction_date' => 'date',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function user() { return $this->belongsTo(User::class); }
-    public function batch() { return $this->belongsTo(ProductBatch::class, 'batch_id'); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function batch()
+    {
+        return $this->belongsTo(ProductBatch::class, 'batch_id');
+    }
 
     public function reference()
     {

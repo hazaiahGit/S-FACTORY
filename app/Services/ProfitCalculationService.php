@@ -2,11 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Sale;
-use App\Models\Purchase;
+use App\Models\Customer;
 use App\Models\Expense;
-use App\Models\SaleItem;
-use Illuminate\Support\Facades\DB;
+use App\Models\Sale;
+use App\Models\SalePayment;
+use App\Models\Stock;
+use App\Models\Supplier;
 
 class ProfitCalculationService
 {
@@ -18,7 +19,7 @@ class ProfitCalculationService
         int $businessId,
         \DateTime|string $from,
         \DateTime|string $to,
-        int $branchId = null
+        ?int $branchId = null
     ): array {
         $salesQuery = Sale::where('business_id', $businessId)
             ->where('sale_type', 'sale')
@@ -60,18 +61,19 @@ class ProfitCalculationService
     /**
      * Calculate today's dashboard summary.
      */
-    public function todaySummary(int $businessId, int $branchId = null): array
+    public function todaySummary(int $businessId, ?int $branchId = null): array
     {
         $today = today();
+
         return $this->calculate($businessId, $today, $today, $branchId);
     }
 
     /**
      * Get total outstanding customer debt.
      */
-    public function totalCustomerDebt(int $businessId, int $branchId = null): float
+    public function totalCustomerDebt(int $businessId, ?int $branchId = null): float
     {
-        return (float) \App\Models\Customer::where('business_id', $businessId)
+        return (float) Customer::where('business_id', $businessId)
             ->where('current_balance', '>', 0)
             ->sum('current_balance');
     }
@@ -81,7 +83,7 @@ class ProfitCalculationService
      */
     public function totalSupplierDebt(int $businessId): float
     {
-        return (float) \App\Models\Supplier::where('business_id', $businessId)
+        return (float) Supplier::where('business_id', $businessId)
             ->where('current_balance', '>', 0)
             ->sum('current_balance');
     }
@@ -89,23 +91,27 @@ class ProfitCalculationService
     /**
      * Get total stock value across all branches.
      */
-    public function totalStockValue(int $businessId, int $branchId = null): float
+    public function totalStockValue(int $businessId, ?int $branchId = null): float
     {
-        $query = \App\Models\Stock::where('business_id', $businessId);
-        if ($branchId) $query->where('branch_id', $branchId);
+        $query = Stock::where('business_id', $businessId);
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
         return (float) $query->sum('stock_value');
     }
 
     /**
      * Sales breakdown by payment method.
      */
-    public function salesByPaymentMethod(int $businessId, $from, $to, int $branchId = null): array
+    public function salesByPaymentMethod(int $businessId, $from, $to, ?int $branchId = null): array
     {
-        $query = \App\Models\SalePayment::where('business_id', $businessId)
+        $query = SalePayment::where('business_id', $businessId)
             ->whereBetween('payment_date', [$from, $to]);
         if ($branchId) {
-            $query->whereHas('sale', fn($q) => $q->where('branch_id', $branchId));
+            $query->whereHas('sale', fn ($q) => $q->where('branch_id', $branchId));
         }
+
         return $query->selectRaw('payment_method, SUM(amount) as total, COUNT(*) as count')
             ->groupBy('payment_method')
             ->get()

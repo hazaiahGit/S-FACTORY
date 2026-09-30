@@ -70,7 +70,7 @@ class ProductTypeController extends Controller
         ]);
 
         $validated['business_id'] = $businessId;
-        $validated['code'] = !empty($validated['code'])
+        $validated['code'] = ! empty($validated['code'])
             ? Str::slug($validated['code'], '_')
             : Str::slug($validated['name'], '_');
 
@@ -79,7 +79,7 @@ class ProductTypeController extends Controller
             ->where('code', $validated['code'])
             ->exists();
         if ($existing) {
-            $validated['code'] .= '_' . Str::lower(Str::random(3));
+            $validated['code'] .= '_'.Str::lower(Str::random(3));
         }
 
         $validated['is_sold'] = $validated['is_sold'] ?? true;
@@ -125,10 +125,11 @@ class ProductTypeController extends Controller
         abort_unless($productType->business_id === $businessId, 403);
 
         $productType->update([
-            'is_active' => !$productType->is_active,
+            'is_active' => ! $productType->is_active,
         ]);
 
         $status = $productType->is_active ? 'activated' : 'deactivated';
+
         return redirect()->back()->with('success', "Product Type {$status} successfully.");
     }
 

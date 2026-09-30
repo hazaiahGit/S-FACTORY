@@ -2,15 +2,15 @@
 
 namespace App\Services;
 
-use App\Models\Target;
+use App\Models\Customer;
+use App\Models\Expense;
+use App\Models\ProductionOrder;
+use App\Models\Purchase;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\Purchase;
-use App\Models\Expense;
-use App\Models\CustomerPayment;
-use App\Models\ProductionOrder;
+use App\Models\SalePayment;
+use App\Models\Target;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class TargetService
 {
@@ -47,7 +47,7 @@ class TargetService
             $totalSeconds = $end->timestamp - $start->timestamp;
             $elapsedSeconds = $now->timestamp - $start->timestamp;
             $timeElapsedPercent = ($elapsedSeconds / $totalSeconds) * 100;
-            
+
             $daysTotal = $start->diffInDays($end) + 1;
             $daysRemaining = $now->diffInDays($end) + 1;
         }
@@ -56,7 +56,7 @@ class TargetService
         $expectedActual = ($timeElapsedPercent / 100) * $targetValue;
         $dailyRequired = $daysRemaining > 0 ? ($remaining / $daysRemaining) : 0;
         $projectedTotal = $timeElapsedPercent > 0 ? ($actual / ($timeElapsedPercent / 100)) : 0;
-        
+
         $variance = $actual - $expectedActual;
 
         return [
@@ -106,7 +106,7 @@ class TargetService
                 break;
 
             case 'collection':
-                $query = \App\Models\SalePayment::where('business_id', $target->business_id);
+                $query = SalePayment::where('business_id', $target->business_id);
                 $sumColumn = 'amount';
                 break;
 
@@ -123,21 +123,21 @@ class TargetService
                     ->where('sales.business_id', $target->business_id)
                     ->where('sales.sale_type', 'sale')
                     ->whereNotIn('sales.status', ['cancelled']);
-                
+
                 if ($target->target_type === 'category') {
                     $query->join('products', 'products.id', '=', 'sale_items.product_id');
                 }
-                
+
                 // Are we measuring count (qty) or amount (revenue)?
                 $sumColumn = $target->measurement_unit === 'quantity' ? 'sale_items.quantity' : 'sale_items.total_price';
                 break;
 
             case 'customer':
-                $query = \App\Models\Customer::where('business_id', $target->business_id);
+                $query = Customer::where('business_id', $target->business_id);
                 // Customers acquired
                 $sumColumn = 'count';
                 break;
-                
+
             default:
                 return 0;
         }
@@ -147,7 +147,7 @@ class TargetService
             if (in_array($target->target_type, ['product', 'category'])) {
                 $query->where('sales.branch_id', $target->branch_id);
             } elseif ($target->target_type === 'collection') {
-                $query->whereHas('sale', fn($q) => $q->where('branch_id', $target->branch_id));
+                $query->whereHas('sale', fn ($q) => $q->where('branch_id', $target->branch_id));
             } elseif ($target->target_type !== 'customer') {
                 $query->where('branch_id', $target->branch_id);
             }
@@ -172,7 +172,7 @@ class TargetService
         if ($target->category_id && $target->target_type === 'category') {
             $query->where('products.category_id', $target->category_id);
         }
-        
+
         if ($target->customer_id) {
             if (in_array($target->target_type, ['product', 'category'])) {
                 $query->where('sales.customer_id', $target->customer_id);
@@ -194,13 +194,13 @@ class TargetService
         if ($sumColumn === 'count') {
             return (float) $query->whereBetween($dateColumn, [
                 $target->start_date->format('Y-m-d 00:00:00'),
-                $target->end_date->format('Y-m-d 23:59:59')
+                $target->end_date->format('Y-m-d 23:59:59'),
             ])->count();
         }
 
         return (float) $query->whereBetween($dateColumn, [
             $target->start_date->format('Y-m-d'),
-            $target->end_date->format('Y-m-d')
+            $target->end_date->format('Y-m-d'),
         ])->sum($sumColumn);
     }
 
@@ -222,9 +222,9 @@ class TargetService
         }
 
         // If it's an expense target, logic is reversed (lower is better)
-        // We will assume normal positive targets here for simplicity. 
+        // We will assume normal positive targets here for simplicity.
         // If needed, Expense logic could be injected.
-        
+
         // Allowed 5% buffer for being "On Track"
         if ($achievementPercent >= ($timeElapsedPercent - 5)) {
             return 'ON TRACK';

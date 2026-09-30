@@ -32,21 +32,58 @@ class ProductionOrder extends Model
         'completion_date' => 'date',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function bom() { return $this->belongsTo(BillOfMaterial::class, 'bom_id'); }
-    public function product() { return $this->belongsTo(Product::class); }
-    public function user() { return $this->belongsTo(User::class); }
-    public function approvedBy() { return $this->belongsTo(User::class, 'approved_by'); }
-    public function materials() { return $this->hasMany(ProductionMaterial::class); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function bom()
+    {
+        return $this->belongsTo(BillOfMaterial::class, 'bom_id');
+    }
+
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function materials()
+    {
+        return $this->hasMany(ProductionMaterial::class);
+    }
 
     public function calculateUnitCost(): float
     {
-        $qty = (float)($this->actual_quantity ?? $this->planned_quantity);
-        if ($qty <= 0) return 0;
-        return round((float)$this->total_production_cost / $qty, 2);
+        $qty = (float) ($this->actual_quantity ?? $this->planned_quantity);
+        if ($qty <= 0) {
+            return 0;
+        }
+
+        return round((float) $this->total_production_cost / $qty, 2);
     }
 
-    public function scopeCompleted($query) { return $query->where('status', 'completed'); }
-    public function scopeInProgress($query) { return $query->where('status', 'in_progress'); }
+    public function scopeCompleted($query)
+    {
+        return $query->where('status', 'completed');
+    }
+
+    public function scopeInProgress($query)
+    {
+        return $query->where('status', 'in_progress');
+    }
 }

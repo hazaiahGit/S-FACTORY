@@ -108,10 +108,11 @@ class UnitController extends Controller
         abort_unless($unit->business_id === $businessId, 403);
 
         $unit->update([
-            'is_active' => !$unit->is_active,
+            'is_active' => ! $unit->is_active,
         ]);
 
         $status = $unit->is_active ? 'activated' : 'deactivated';
+
         return redirect()->back()->with('success', "Unit {$status} successfully.");
     }
 

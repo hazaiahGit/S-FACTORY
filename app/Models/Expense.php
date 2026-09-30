@@ -21,14 +21,38 @@ class Expense extends Model
         'expense_date' => 'date',
     ];
 
-    public function business() { return $this->belongsTo(Business::class); }
-    public function branch() { return $this->belongsTo(Branch::class); }
-    public function category() { return $this->belongsTo(ExpenseCategory::class, 'expense_category_id'); }
-    public function user() { return $this->belongsTo(User::class); }
-    public function approvedBy() { return $this->belongsTo(User::class, 'approved_by'); }
+    public function business()
+    {
+        return $this->belongsTo(Business::class);
+    }
 
-    public function scopeApproved($query) { return $query->where('status', 'approved'); }
-    public function scopeForPeriod($query, $from, $to) {
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function category()
+    {
+        return $this->belongsTo(ExpenseCategory::class, 'expense_category_id');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function approvedBy()
+    {
+        return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function scopeApproved($query)
+    {
+        return $query->where('status', 'approved');
+    }
+
+    public function scopeForPeriod($query, $from, $to)
+    {
         return $query->whereBetween('expense_date', [$from, $to]);
     }
 }

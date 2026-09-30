@@ -55,10 +55,10 @@ class NumberGeneratorService
 
     public function generatePaymentNumber(string $type, int $businessId): string
     {
-        return $this->generate($type . '_payment', $businessId);
+        return $this->generate($type.'_payment', $businessId);
     }
 
-    public function generateBatchNumber(int $businessId, string $productPrefix = null): string
+    public function generateBatchNumber(int $businessId, ?string $productPrefix = null): string
     {
         $business = Business::findOrFail($businessId);
         $prefix = $productPrefix ?? $business->batch_prefix ?? 'HW';
@@ -141,7 +141,7 @@ class NumberGeneratorService
             'transfer' => 'stock_transfers',
             'stock_take' => 'stock_takes',
             'adjustment' => 'stock_adjustments',
-            default => $type . 's',
+            default => $type.'s',
         };
     }
 
@@ -156,7 +156,7 @@ class NumberGeneratorService
             'transfer' => 'transfer_number',
             'stock_take' => 'stock_take_number',
             'adjustment' => 'adjustment_number',
-            default => $type . '_number',
+            default => $type.'_number',
         };
     }
 }

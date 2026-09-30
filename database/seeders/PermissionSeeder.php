@@ -25,7 +25,7 @@ class PermissionSeeder extends Seeder
                 Permission::firstOrCreate(['name' => $perm]);
             }
         }
-        
+
         $superAdmin = Role::firstOrCreate(['name' => 'Super Admin']);
         $superAdmin->givePermissionTo(Permission::all());
     }

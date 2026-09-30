@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
@@ -23,22 +23,22 @@ class Product extends Model
     ];
 
     protected $casts = [
-        'images'          => 'array',
-        'purchase_price'  => 'decimal:2',
-        'cost_price'      => 'decimal:2',
-        'selling_price'   => 'decimal:2',
+        'images' => 'array',
+        'purchase_price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
+        'selling_price' => 'decimal:2',
         'wholesale_price' => 'decimal:2',
         'min_selling_price' => 'decimal:2',
-        'min_stock'       => 'decimal:3',
-        'reorder_level'   => 'decimal:3',
-        'opening_stock'   => 'decimal:3',
-        'tax_rate'        => 'decimal:2',
-        'track_stock'     => 'boolean',
-        'has_batches'     => 'boolean',
-        'has_expiry'      => 'boolean',
-        'tax_applicable'  => 'boolean',
-        'is_active'       => 'boolean',
-        'is_featured'     => 'boolean',
+        'min_stock' => 'decimal:3',
+        'reorder_level' => 'decimal:3',
+        'opening_stock' => 'decimal:3',
+        'tax_rate' => 'decimal:2',
+        'track_stock' => 'boolean',
+        'has_batches' => 'boolean',
+        'has_expiry' => 'boolean',
+        'tax_applicable' => 'boolean',
+        'is_active' => 'boolean',
+        'is_featured' => 'boolean',
     ];
 
     // ─── Relationships ────────────────────────────────────────────────────────

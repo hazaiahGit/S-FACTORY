@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Brand;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Str;
+use Inertia\Inertia;
 
 class BrandController extends Controller
 {
@@ -46,6 +46,7 @@ class BrandController extends Controller
 
         try {
             Brand::create($validated);
+
             return redirect()->route('brands.index')->with('success', 'Brand created successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to create brand. Please try again.');
@@ -79,6 +80,7 @@ class BrandController extends Controller
 
         try {
             $brand->update($validated);
+
             return redirect()->route('brands.index')->with('success', 'Brand updated successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to update brand. Please try again.');
@@ -93,6 +95,7 @@ class BrandController extends Controller
 
         try {
             $brand->delete();
+
             return redirect()->route('brands.index')->with('success', 'Brand deleted successfully.');
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Failed to delete brand. Please try again.');
