@@ -73,6 +73,7 @@ class SaleService
             // Create items
             $subtotal = 0;
             $totalCogs = 0;
+            $totalTax = 0;
             foreach ($data['items'] as $itemData) {
                 $product = Product::findOrFail($itemData['product_id']);
                 $unitCost = (float) $product->cost_price;
@@ -105,6 +106,7 @@ class SaleService
 
                 $subtotal += $lineTotal;
                 $totalCogs += $lineCogs;
+                $totalTax += $taxAmount;
 
                 // Deduct or Reserve stock for actual sales (not quotations)
                 if ($data['sale_type'] === 'sale' && $product->track_stock) {
@@ -132,8 +134,9 @@ class SaleService
             if ($discountAmount == 0 && isset($data['discount_percent']) && $data['discount_percent'] > 0) {
                 $discountAmount = $subtotal * ((float) $data['discount_percent'] / 100);
             }
+            $discountAmount = min($discountAmount, $subtotal);
             $discountPercent = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
-            $totalAmount = $subtotal - $discountAmount;
+            $totalAmount = max(0, $subtotal - $discountAmount);
             $grossProfit = $totalAmount - $totalCogs;
 
             // Process payments
@@ -158,12 +161,13 @@ class SaleService
                 $paidAmount += $amount;
             }
 
-            $balanceAmount = $totalAmount - $paidAmount;
+            $balanceAmount = max(0, $totalAmount - $paidAmount);
 
             $sale->update([
                 'subtotal' => $subtotal,
                 'discount_percent' => $discountPercent,
                 'discount_amount' => $discountAmount,
+                'tax_amount' => $totalTax,
                 'total_amount' => $totalAmount,
                 'paid_amount' => $paidAmount,
                 'balance_amount' => $balanceAmount,
@@ -370,9 +374,10 @@ class SaleService
             if ($discountAmount == 0 && isset($data['discount_percent']) && $data['discount_percent'] > 0) {
                 $discountAmount = $subtotal * ((float) $data['discount_percent'] / 100);
             }
+            $discountAmount = min($discountAmount, $subtotal);
             $discountPercent = $subtotal > 0 ? ($discountAmount / $subtotal) * 100 : 0;
             $taxAmount = 0; // Simple implementation
-            $totalAmount = $subtotal - $discountAmount + $taxAmount;
+            $totalAmount = max(0, $subtotal - $discountAmount + $taxAmount);
 
             // Update payments if provided
             $paidAmount = (float) $sale->paid_amount;
@@ -401,7 +406,7 @@ class SaleService
                     $paidAmount += $amount;
                 }
             }
-            $balanceAmount = $totalAmount - $paidAmount;
+            $balanceAmount = max(0, $totalAmount - $paidAmount);
 
             $sale->update([
                 'branch_id' => $data['branch_id'],
@@ -417,6 +422,7 @@ class SaleService
                 'discount_amount' => $discountAmount,
                 'tax_amount' => $taxAmount,
                 'total_amount' => $totalAmount,
+                'paid_amount' => $paidAmount,
                 'balance_amount' => $balanceAmount,
                 'cogs' => $totalCogs,
                 'gross_profit' => $totalAmount - $totalCogs,

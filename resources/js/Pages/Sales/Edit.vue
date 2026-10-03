@@ -1,7 +1,7 @@
 <script setup>
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { useForm, Link, usePage } from '@inertiajs/vue3';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { 
     Search, 
     ArrowLeft,
@@ -57,6 +57,7 @@ const form = useForm({
     transaction_date: props.sale.transaction_date ? props.sale.transaction_date.split('T')[0] : new Date().toISOString().split('T')[0],
     discount_percent: props.sale.discount_percent || 0,
     discount_amount: props.sale.discount_amount || 0,
+    notes: props.sale.notes || '',
     items: [],
 });
 
@@ -73,6 +74,8 @@ const paymentForm = ref({
     amount: 0,
     reference: '',
 });
+
+const isPaymentAmountManuallyEdited = ref(false);
 
 // Computed properties
 const filteredProducts = computed(() => {
@@ -102,7 +105,27 @@ const taxAmount = computed(() => {
 });
 
 const totalDue = computed(() => {
-    return Math.max(0, subtotal.value - (parseFloat(form.discount_amount) || 0) + taxAmount.value);
+    const rawDiscount = parseFloat(form.discount_amount) || 0;
+    const effectiveDiscount = Math.min(rawDiscount, subtotal.value);
+    return Math.max(0, subtotal.value - effectiveDiscount + taxAmount.value);
+});
+
+const applyQuickDiscount = (percent) => {
+    if (percent === 0) {
+        form.discount_amount = 0;
+    } else {
+        form.discount_amount = Math.round(subtotal.value * (percent / 100));
+    }
+    if (!isPaymentAmountManuallyEdited.value && form.status !== 'credit' && form.status !== 'draft' && form.status !== 'on_hold') {
+        paymentForm.value.amount = totalDue.value;
+    }
+};
+
+// Automatically keep payment amount in sync with total due
+watch(totalDue, (newTotal) => {
+    if (!isPaymentAmountManuallyEdited.value && form.status !== 'credit' && form.status !== 'draft' && form.status !== 'on_hold') {
+        paymentForm.value.amount = newTotal;
+    }
 });
 
 const formatCurrency = (value) => {
@@ -141,17 +164,27 @@ const removeItem = (index) => {
 
 const openPayment = () => {
     if (form.items.length === 0) return;
+    isPaymentAmountManuallyEdited.value = false;
     paymentForm.value.amount = form.status === 'credit' || form.status === 'draft' || form.status === 'on_hold' ? 0 : totalDue.value;
     showPaymentModal.value = true;
 };
 
 const processCheckout = () => {
+    const enteredAmount = Number(paymentForm.value.amount) || 0;
+    const finalAmount = form.status === 'credit'
+        ? Math.min(enteredAmount, totalDue.value)
+        : (paymentForm.value.method === 'cash' ? Math.min(enteredAmount, totalDue.value) : enteredAmount);
+
     form.payments = [{
         payment_method: paymentForm.value.method,
-        amount: paymentForm.value.amount,
+        amount: finalAmount,
         reference: paymentForm.value.reference
     }];
     
+    // Ensure discount is clamped and discount_percent is set
+    form.discount_amount = Math.min(parseFloat(form.discount_amount) || 0, subtotal.value);
+    form.discount_percent = subtotal.value > 0 ? (form.discount_amount / subtotal.value) * 100 : 0;
+
     // Apply global tax amount to the first item (or spread it) if the backend expects line-item taxes. 
     // In our backend SaleService, line total is calculated with item tax_amount.
     // For simplicity, we assign the entire tax to the first item so the backend total matches.
@@ -373,6 +406,10 @@ onMounted(() => {
                         <span>VAT ({{ taxRate }}%)</span>
                         <span>{{ formatCurrency(taxAmount) }}</span>
                     </div>
+                    <div v-if="Number(form.discount_amount) > 0" class="flex justify-between items-center mb-1.5 text-xs text-emerald-400 font-semibold">
+                        <span>Discount</span>
+                        <span>-{{ formatCurrency(form.discount_amount) }}</span>
+                    </div>
                     <div class="flex justify-between items-center mb-4 border-t border-slate-700 pt-3">
                         <span class="text-slate-300 font-bold text-base">Total Due</span>
                         <span class="font-black text-white text-2xl tracking-tight">{{ formatCurrency(totalDue) }}</span>
@@ -418,12 +455,55 @@ onMounted(() => {
                             </div>
                             
                             <div class="mb-5 text-left">
-                                <label class="block text-sm font-bold text-slate-700 mb-2">Discount Amount</label>
+                                <div class="flex items-center justify-between mb-2">
+                                    <label class="block text-sm font-bold text-slate-700">Discount Amount</label>
+                                    <span v-if="subtotal > 0 && Number(form.discount_amount) > 0" class="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                        {{ Math.round((Number(form.discount_amount) / subtotal) * 100) }}% off
+                                    </span>
+                                </div>
                                 <div class="relative">
                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                         <span class="text-slate-500 font-bold">-</span>
                                     </div>
                                     <FormattedNumberInput v-model="form.discount_amount" class="block w-full pl-8 py-3 text-lg border-slate-200 rounded-xl focus:ring-amber-500 focus:border-amber-500 font-bold text-slate-900 shadow-sm transition-all" placeholder="0" />
+                                </div>
+                                <!-- Quick presets -->
+                                <div v-if="subtotal > 0" class="flex items-center gap-1.5 mt-2 flex-wrap">
+                                    <button
+                                        type="button"
+                                        @click="applyQuickDiscount(0)"
+                                        :class="['px-2.5 py-1 text-xs font-bold rounded-lg transition-all', !form.discount_amount || form.discount_amount == 0 ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200']"
+                                    >
+                                        0%
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyQuickDiscount(5)"
+                                        :class="['px-2.5 py-1 text-xs font-bold rounded-lg transition-all', form.discount_amount == Math.round(subtotal * 0.05) ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200']"
+                                    >
+                                        5%
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyQuickDiscount(10)"
+                                        :class="['px-2.5 py-1 text-xs font-bold rounded-lg transition-all', form.discount_amount == Math.round(subtotal * 0.10) ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200']"
+                                    >
+                                        10%
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyQuickDiscount(15)"
+                                        :class="['px-2.5 py-1 text-xs font-bold rounded-lg transition-all', form.discount_amount == Math.round(subtotal * 0.15) ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200']"
+                                    >
+                                        15%
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="applyQuickDiscount(20)"
+                                        :class="['px-2.5 py-1 text-xs font-bold rounded-lg transition-all', form.discount_amount == Math.round(subtotal * 0.20) ? 'bg-amber-600 text-white' : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200']"
+                                    >
+                                        20%
+                                    </button>
                                 </div>
                             </div>
                             
@@ -455,7 +535,7 @@ onMounted(() => {
                                 <div>
                                     <label class="block text-sm font-bold text-slate-700 mb-2">Amount Received</label>
                                     <div class="relative rounded-xl shadow-sm">
-                                        <FormattedNumberInput v-model="paymentForm.amount" class="block w-full py-4 pl-4 pr-4 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-amber-500 text-2xl font-black text-slate-900 transition-colors" />
+                                        <FormattedNumberInput v-model="paymentForm.amount" @input="isPaymentAmountManuallyEdited = true" class="block w-full py-4 pl-4 pr-4 border-2 border-slate-200 rounded-xl focus:ring-0 focus:border-amber-500 text-2xl font-black text-slate-900 transition-colors" />
                                     </div>
                                     <div v-if="paymentForm.amount > totalDue" class="mt-3 p-3 bg-emerald-50 text-emerald-800 rounded-lg flex justify-between items-center border border-emerald-100">
                                         <span class="font-bold text-sm uppercase tracking-wide">Change Due</span>
